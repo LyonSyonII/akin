@@ -1,36 +1,42 @@
-use quote::quote;
-use proc_macro::{Delimiter, TokenTree};
+use proc_macro::{Delimiter, Span, TokenTree};
+use proc_macro_error::{proc_macro_error, abort};
 extern crate proc_macro;
 
+#[proc_macro_error]
 #[proc_macro]
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
-    let mut tokens = input.clone().into_iter();
+    let mut tokens = input.into_iter();
     
-    while matches!(tokens.next().unwrap(), TokenTree::Ident(ident) if ident.to_string() == "let") && matches!(tokens.next().unwrap(), TokenTree::Punct(punct) if punct.to_string() == "&") {
+    let mut first = tokens.next().unwrap();
+    let mut second = tokens.next().unwrap();
+    while matches!(&first, TokenTree::Ident(ident) if ident.to_string() == "let") && matches!(&second, TokenTree::Punct(punct) if punct.to_string() == "&") {
         vars.push(parse_var(&mut tokens, &vars));
+        first = tokens.next().unwrap();
+        second = tokens.next().unwrap();
     }
     
+    let out = tokens.fold(format!("{first} {second}"), |acc, x| format!("{acc} {x}"));
+    let out = duplicate(&out, &vars);
     
     
-    
-    
-    
-    
-
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
-    let tokens = format!("vars: {:#?}", vars);
-    
+    //let tokens = format!("vars: {:#?}", vars);
+    /*
     quote! {
-        println!("{}", #tokens);
+        println!("{}", #out);
     }.into()
+    */
+    
+    out.parse().unwrap()
 }
 
 fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, Vec<String>)]) -> (String, Vec<String>) {
-    let name = format!("*{}", tokens.next().unwrap());
+    let name = format!("* {}", tokens.next().unwrap());
     tokens.next().unwrap(); // skip '='
     let mut values: Vec<String> = Vec::new();
-    if let TokenTree::Group(group) = tokens.next().unwrap() {
+    let group = tokens.next().unwrap();
+    if let TokenTree::Group(group) = &group {
         if group.delimiter() == Delimiter::Bracket {
             for var in group.stream() {
                 let txt = var.to_string();
@@ -42,8 +48,10 @@ fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, V
             values.push(duplicate(&group.stream().to_string(), vars));
         }
         
+        if tokens.next().unwrap().to_string() != ";" {
+            abort!(group.span_close(), "Expected ';'")
+        }
     }
-    tokens.next().unwrap(); // skip ';'
 
     (name, values)
 }
@@ -51,7 +59,6 @@ fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, V
 fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
     let (vars, times) = get_used_vars(stream, vars);
     let mut out = String::new();
-    out = format!("{vars:?}, {times}, {stream}");
     for i in 0..times {
         let mut temp = stream.to_owned();
         for var in &vars {
