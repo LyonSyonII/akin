@@ -18,34 +18,24 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         second = tokens.next().unwrap();
     }
     
-    fn fold(a: String, tt: TokenTree) -> String {
-        if let TokenTree::Group(group) = tt {
-            let (start, end) = get_delimiters(group.delimiter());  
-            let group = group.stream().into_iter().fold(String::new(), fold);
-            format!("{a}{start}{group}{end}")
-        } else if a.ends_with('*') {
-            format!("{a}{tt}")
-        } else {
-            format!("{a} {tt}")
-        }
-    }
+    let mut previous = second.clone();
     
-    let init = fold(fold(String::new(), first), second);
-    let out_raw = tokens.fold(init, fold);
+    let init = fold(fold(String::new(), first, &mut previous), second, &mut previous);
+    let out_raw = tokens.fold(init, |acc, tt| fold(acc, tt, &mut previous));
     let out = duplicate(&out_raw, &vars);
     
     
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
     //let tokens = format!("vars: {:#?}", vars);
-    
-    
+    //panic!("{tokens}");
+    //panic!("\nVars: {vars:#?}\nRaw: {out_raw}\nOut: {out}\n");
     
     out.parse().unwrap()
 }
 
 fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, Vec<String>)]) -> (String, Vec<String>) {
     let name = format!("*{}", tokens.next().unwrap());
-    tokens.next().unwrap(); // skip '='
+    let mut prev = tokens.next().unwrap(); // skip '='
     let mut values: Vec<String> = Vec::new();
     let group = tokens.next().unwrap();
     if let TokenTree::Group(group) = &group {
@@ -57,7 +47,8 @@ fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, V
                 }
             }
         } else {
-            values.push(duplicate(&group.stream().to_string(), vars));
+            let fold = group.stream().into_iter().fold(String::new(), |acc, tt| fold(acc, tt, &mut prev));
+            values.push(duplicate(&fold, vars));
         }
         
         if tokens.next().unwrap().to_string() != ";" {
@@ -101,5 +92,20 @@ fn get_delimiters(delimiter: Delimiter) -> (char, char) {
         Delimiter::Brace => ('{', '}'),
         Delimiter::Bracket => ('[', ']'),
         Delimiter::None => ('\0', '\0'),
+    }
+}
+
+fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
+    if let TokenTree::Group(group) = &tt {
+        let (start, end) = get_delimiters(group.delimiter());  
+        let group = group.stream().into_iter().fold(String::new(), |acc, tt| fold(acc, tt, prev));
+        *prev = tt;
+        format!("{a}{start}{group}{end}")
+    } else if matches!(&prev, TokenTree::Punct(_)) {
+        *prev = tt.clone();
+        format!("{a}{tt}")
+    } else {
+        *prev = tt.clone();
+        format!("{a} {tt}")
     }
 }

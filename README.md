@@ -21,7 +21,7 @@ akin! {
         }, 
         //
     ]
-
+    
     let &num = [1,    2,    3, 4];
     let &res = [1, 1.41, 1.73, 2];
     let &branch = {
@@ -31,7 +31,7 @@ akin! {
     impl Sqrt for *int_type {
         fn dumb_sqrt(self) -> Result<f64, &str> {
             *negative_check
-
+            
             match self {
                 *branch
                 _ => Err("Sqrt of num not in [1, 4]")
@@ -84,7 +84,7 @@ The crate only provides one macro, `akin!`.
 The syntax is as follows:
 
 First, you declare the variables you'll use. 
-A variable name must start with `&`, as it's the only way the macro can differentiate between macro or real declaratinons.
+A variable name must start with `&`, as it's the only way it can differentiate between macro or real declarations.
 
 ```rust
 let &variable = [v1, v2, v3, ...]
@@ -96,4 +96,52 @@ let &code = {
 ```
 
 Then, when all variables have been declared, you can write the code snippet you want to duplicate.  
-The amount of times it will be duplicated depends on the variables that are used.
+The amount of times it will be duplicated depends on the variables that are used.  
+
+```rust
+let &lhs = [1, 2, 3];
+let &rhs = [4, 5, 6];
+println!("*lhs + *rhs = {}", *lhs + *rhs);
+```
+
+Will get expanded to:
+
+```rust
+println!("1 + 4 = {}", 1 + 4);
+println!("2 + 5 = {}", 2 + 5);
+println!("3 + 6 = {}", 3 + 6);
+```
+Because the variables `&lhs` and `&rhs` have 3 values.
+
+As you can see, `&` is used to declare variables and `*` is used to "dereference" them to the current value.
+
+Now let's describe what the main example is doing.
+Firstly, we declare the variables that will differentiate each copy of the function.
+
+So, as we need an implementation for `i64` and `u64`, we use them for this purpose.
+```rust
+let &int_type = [i64, u64];
+```
+```rust
+let &negative_check = [
+    if num < 0 {
+        return Err("Sqrt of negative number")
+    }, 
+    //
+]
+
+let &num = [1,    2,    3, 4];
+let &res = [1, 1.41, 1.73, 2];
+let &branch = {
+    *num => Ok(*res),
+}
+impl Sqrt for *int_type {
+    fn dumb_sqrt(self) -> Result<f64, &str> {
+        *negative_check
+        
+        match self {
+            *branch
+            _ => Err("Sqrt of num not in [1, 4]")
+        }
+    }
+}
