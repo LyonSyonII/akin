@@ -9,7 +9,3 @@ documentation = "https://docs.rs/akin"
 
 [lib]
 proc-macro = true
-
-[dependencies]
-syn = "1.0.86"
-proc-macro-error = "1.0.4"

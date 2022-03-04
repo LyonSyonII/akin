@@ -1,7 +1,5 @@
 use proc_macro::{Delimiter, TokenTree, Punct};
-use proc_macro_error::{abort, proc_macro_error};
 
-#[proc_macro_error]
 #[proc_macro]
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
@@ -11,17 +9,17 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut first = tokens.next().expect("akin: expected code to duplicate");
     let mut second = tokens
         .next()
-        .unwrap_or_else(|| abort!(first.span(), "akin: expected code to duplicate"));
+        .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
     while matches!(&first, TokenTree::Ident(ident) if ident.to_string() == "let")
         && matches!(&second, TokenTree::Punct(punct) if punct.to_string() == "&")
     {
         vars.push(parse_var(&mut tokens, &vars));
         first = tokens
             .next()
-            .unwrap_or_else(|| abort!(second.span(), "akin: expected code to duplicate"));
+            .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
         second = tokens
             .next()
-            .unwrap_or_else(|| abort!(first.span(), "akin: expected code to duplicate"));
+            .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
     }
 
     let mut previous = second.clone();
@@ -84,7 +82,7 @@ fn parse_var(
         }
 
         if tokens.next().expect("akin: expected ';'").to_string() != ";" {
-            abort!(group.span_close(), "akin: expected ';'")
+            panic!("akin: expected ';' on variable end");
         }
     }
 
