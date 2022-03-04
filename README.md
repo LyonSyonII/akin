@@ -4,7 +4,7 @@ Check [Syntax](#syntax) for information about how to use it.
 
 ## Why?
 I've found myself having to write a lot of repetitive code (mostly when matching against enums in parsing).  
-The fantastic [duplicate](https://crates.io/crates/duplicate) lacked the ability to write invariable code (code that didn't get duplicated) and had a too different syntax,  so I decided to make my own tool.  
+The fantastic [duplicate](https://crates.io/crates/duplicate) lacked the ability to write invariable code (that didn't get duplicated) and had a too different syntax,  so I decided to make my own tool.  
 
 
 ## Example
