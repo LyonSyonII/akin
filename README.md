@@ -2,12 +2,12 @@
 Crate for writing repetitive code easier and faster.
 Check [Syntax](#syntax) for information about how to use it.
 
-## Why?
+### Why?
 I've found myself having to write a lot of repetitive code (mostly when matching against enums in parsing).  
 The fantastic [duplicate](https://crates.io/crates/duplicate) lacked the ability to write invariable code (code that didn't get duplicated) and had a too different syntax,  so I decided to make my own tool.  
 
 
-## Example
+### Example
 ```rust
 trait Sqrt {
     fn dumb_sqrt(self) -> Result<f64, &str>;
@@ -79,7 +79,7 @@ impl Sqrt for u64 {
 
 The good thing about **akin** is that it detects automatically the number of values of each variable *for each scope*, so for example "branch" will get copied 4 times (as "num" and "res" both have 4 values), but the main function will only be duplicated once, as all the variables it has have 2 values.
 
-## Syntax
+### Syntax
 The crate only provides one macro, `akin!`.
 The syntax is as follows:
 
@@ -147,7 +147,7 @@ impl Sqrt for *int_type {
 }
 ```
 
-## Raw modifier
+### Raw modifier
 By default, `akin` places a space between all identifiers
 
 ```rust    
