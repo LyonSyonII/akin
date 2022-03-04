@@ -115,38 +115,6 @@ Because the variables `&lhs` and `&rhs` have 3 values.
 
 As you can see, `&` is used to declare variables and `*` is used to "dereference" them to the current value.
 
-Now let's describe what the main example is doing.
-Firstly, we declare the variables that will differentiate each copy of the function.
-
-So, as we need an implementation for `i64` and `u64`, we use them for this purpose.
-```rust
-let &int_type = [i64, u64];
-```
-```rust
-let &negative_check = [
-    if num < 0 {
-        return Err("Sqrt of negative number")
-    }, 
-    //
-]
-
-let &num = [1,    2,    3, 4];
-let &res = [1, 1.41, 1.73, 2];
-let &branch = {
-    *num => Ok(*res),
-}
-impl Sqrt for *int_type {
-    fn dumb_sqrt(self) -> Result<f64, &str> {
-        *negative_check
-        
-        match self {
-            *branch
-            _ => Err("Sqrt of num not in [1, 4]")
-        }
-    }
-}
-```
-
 ## Raw modifier
 By default, `akin` places a space between all identifiers
 
