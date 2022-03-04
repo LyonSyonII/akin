@@ -8,7 +8,7 @@ trait Sqrt {
 }
 
 impl Sqrt for i64 {
-    fn dumb_square_root(self) -> Result<f64, &str> {
+    fn dumb_sqrt(self) -> Result<f64, &str> {
         if num < 0 {
             return Err("Sqrt of negative number")
         }
@@ -24,7 +24,7 @@ impl Sqrt for i64 {
 }
 
 impl Sqrt for u64 {
-    fn dumb_square_root(self) -> Result<f64, &str> {
+    fn dumb_sqrt(self) -> Result<f64, &str> {
         match num {
             1 => Ok(1),
             2 => Ok(1.41),
@@ -40,13 +40,15 @@ Turns into
 
 ```rust
 trait Sqrt {
-    fn dumb_square_root(self) -> Result<f64, &str>;
+    fn dumb_sqrt(self) -> Result<f64, &str>;
 }
 
 akin! {
     let &int_type = [i64, u64];
     let &negative_check = [
-        if num < 0 {return Err("Sqrt of negative number")}, 
+        if num < 0 {
+            return Err("Sqrt of negative number")
+        }, 
         //
     ]
 
@@ -57,8 +59,8 @@ akin! {
     }
 
     impl Sqrt for *int_type {
-        fn dumb_square_root(self) -> Result<f64, &str> {
-            *negative_checks
+        fn dumb_sqrt(self) -> Result<f64, &str> {
+            *negative_check
 
             match self {
                 *branches
