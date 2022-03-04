@@ -1,7 +1,11 @@
 [package]
 name = "akin"
+description = "A crate for writing repetitive code easier and faster."
 version = "0.1.0"
+license = "MIT"
 edition = "2021"
+repository = "https://github.com/lyonsyonii/akin"
+documentation = "https://docs.rs/akin"
 
 [lib]
 proc-macro = true
