@@ -1,4 +1,4 @@
-use proc_macro::{Delimiter, TokenTree};
+use proc_macro::{Delimiter, TokenTree, Punct};
 use proc_macro_error::{abort, proc_macro_error};
 
 #[proc_macro_error]
@@ -7,7 +7,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
-
+    
     let mut first = tokens.next().expect("akin: expected code to duplicate");
     let mut second = tokens
         .next()
@@ -83,8 +83,8 @@ fn parse_var(
             values.push(duplicate(&fold, vars));
         }
 
-        if tokens.next().unwrap().to_string() != ";" {
-            abort!(group.span_close(), "Expected ';'")
+        if tokens.next().expect("akin: expected ';'").to_string() != ";" {
+            abort!(group.span_close(), "akin: expected ';'")
         }
     }
 
@@ -147,9 +147,20 @@ fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
             .fold(String::new(), |acc, tt| fold(acc, tt, prev));
         *prev = tt;
         format!("{a}{start}{group}{end}")
-    } else if matches!(&prev, TokenTree::Punct(_)) {
+    } 
+    else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '#') {
         *prev = tt.clone();
+        format!("{a} ")
+    } 
+    else if let TokenTree::Punct(p) = &prev {
+        *prev = if p.as_char() == '#' {
+            TokenTree::Punct(Punct::new('$', proc_macro::Spacing::Joint))
+        } else {
+            tt.clone()
+        };
+
         format!("{a}{tt}")
+        
     } else {
         *prev = tt.clone();
         format!("{a} {tt}")
