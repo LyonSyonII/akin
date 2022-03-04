@@ -6,8 +6,10 @@ extern crate proc_macro;
 #[proc_macro]
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
+    //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
     
+
     let mut first = tokens.next().unwrap();
     let mut second = tokens.next().unwrap();
     while matches!(&first, TokenTree::Ident(ident) if ident.to_string() == "let") && matches!(&second, TokenTree::Punct(punct) if punct.to_string() == "&") {
@@ -16,23 +18,33 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         second = tokens.next().unwrap();
     }
     
-    let out = tokens.fold(format!("{first} {second}"), |acc, x| format!("{acc} {x}"));
-    let out = duplicate(&out, &vars);
+    fn fold(a: String, tt: TokenTree) -> String {
+        if let TokenTree::Group(group) = tt {
+            let (start, end) = get_delimiters(group.delimiter());  
+            let group = group.stream().into_iter().fold(String::new(), fold);
+            format!("{a}{start}{group}{end}")
+        } else if a.ends_with('*') {
+            format!("{a}{tt}")
+        } else {
+            format!("{a} {tt}")
+        }
+    }
+    
+    let init = fold(fold(String::new(), first), second);
+    let out_raw = tokens.fold(init, fold);
+    let out = duplicate(&out_raw, &vars);
     
     
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
     //let tokens = format!("vars: {:#?}", vars);
-    /*
-    quote! {
-        println!("{}", #out);
-    }.into()
-    */
+    
+    
     
     out.parse().unwrap()
 }
 
 fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, Vec<String>)]) -> (String, Vec<String>) {
-    let name = format!("* {}", tokens.next().unwrap());
+    let name = format!("*{}", tokens.next().unwrap());
     tokens.next().unwrap(); // skip '='
     let mut values: Vec<String> = Vec::new();
     let group = tokens.next().unwrap();
@@ -81,4 +93,13 @@ fn get_used_vars(stream: &str, vars: &[(String, Vec<String>)]) -> (Vec<(String, 
     }
 
     (used, times)
+}
+
+fn get_delimiters(delimiter: Delimiter) -> (char, char) {
+    match delimiter {
+        Delimiter::Parenthesis => ('(', ')'),
+        Delimiter::Brace => ('{', '}'),
+        Delimiter::Bracket => ('[', ']'),
+        Delimiter::None => ('\0', '\0'),
+    }
 }
