@@ -41,12 +41,21 @@ fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, V
     if let TokenTree::Group(group) = &group {
         if group.delimiter() == Delimiter::Bracket {
             for var in group.stream() {
-                let txt = var.to_string();
+                let txt = if let TokenTree::Group(group) = &var {
+                    if group.delimiter() == Delimiter::Brace {
+                        group.stream().into_iter().fold(String::new(), |acc, tt| fold(acc, tt, &mut prev))
+                    } else {
+                        var.to_string()
+                    }
+                } else {
+                    var.to_string()
+                };
+
                 if txt == "NONE" {
                     values.push(String::new())
                 }
                 else if txt != "," {
-                    values.push(txt);
+                    values.push(duplicate(&txt, vars));
                 }
             }
         } else {
@@ -72,7 +81,12 @@ fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
         }
         out += &temp;
     }
-    out
+    
+    if out == String::new() {
+        stream.into()
+    } else {
+        out
+    }
 }
 
 fn get_used_vars(stream: &str, vars: &[(String, Vec<String>)]) -> (Vec<(String, Vec<String>)>, usize) {
