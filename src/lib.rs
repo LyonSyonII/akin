@@ -42,7 +42,10 @@ fn parse_var(tokens: &mut proc_macro::token_stream::IntoIter, vars: &[(String, V
         if group.delimiter() == Delimiter::Bracket {
             for var in group.stream() {
                 let txt = var.to_string();
-                if txt != "," {
+                if txt == "NONE" {
+                    values.push(String::new())
+                }
+                else if txt != "," {
                     values.push(txt);
                 }
             }
