@@ -1,6 +1,86 @@
 use proc_macro::{Delimiter, TokenTree, Punct};
 
+
 #[proc_macro]
+/// Duplicates the given code and substitutes specific identifiers for different code snippets in each duplicate.
+///
+/// ## Usage
+/// Write each identifier following `let &ident = [v1, v2, v3, ...]`,
+/// and use them in the snippet you want to duplicate with `*ident`.
+/// 
+/// Code snippets are copied `max(used_vars.values)` times.
+/// ```
+/// # use akin::akin;
+/// akin! {
+///     let &var = ['a', 'b'];
+///     println!("{}", *var);
+/// }
+
+/// ```
+/// Will get copied 2 times, because the variable `&var` has 2 values.
+/// 
+/// If a used variable has less values than an other, the last one will be used.
+/// ```
+/// # use akin::akin;
+/// akin! {
+///     let &v1 = [c];
+///     let &v2 = [a, b];
+///     println!("*v1*v2");
+/// }
+/// ```
+/// Expands to
+/// ```rust
+/// println!("ca");
+/// println!("cb");
+/// ```
+/// 
+/// ## Example
+/// ```
+/// # use akin::akin;
+/// akin! {
+///     let &a = [1, 2, 3, 4, 5, 6];
+///     let &b = [4, 5, 6];
+///     let &code = {
+///         println!("*a + *b = {}", *a + *b);
+///     };
+///     let print = true;
+///     if print {
+///         *code
+///     }
+/// }
+/// ```
+/// Expands to
+/// ```
+/// let print = true;
+/// if print {
+///    println!("1 + 4 = 5");
+///    println!("2 + 5 = 7");
+///    println!("3 + 6 = 9");
+///    println!("4 + 6 = 10");
+///    println!("5 + 6 = 11");
+///    println!("6 + 6 = 12");
+/// }
+/// ```
+/// 
+/// ## Raw modifier
+/// By default, `akin` places a space between all identifiers.
+/// Sometimes, this is not desirable, for example, if trying to interpolate between a function name
+/// ```ignore
+///     let &name = [1];
+///     fn _*name()...
+///     
+///     // Will get wrongly expanded because '_' is an identifier
+///     fn _ 1()
+/// ```
+/// To avoid it, use the raw modifier `#`, making the identifier next to the one it affects to not be separated
+/// ```ignore    
+/// let &name = [1];
+/// fn #_*name()... // *name() is affected by the modifier
+/// 
+/// // Will get correctly expanded to
+/// fn _1()
+/// ```
+/// This is a limitation on proc_macro parsing, so I doubt it'll be fixed soon.
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
     //panic!("Tokens: {input:#?}");

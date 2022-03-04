@@ -59,7 +59,6 @@ fn multiple_same_len() {
 #[test]
 fn multiple_diff_len() {
     use std::fmt::Write;
-    
     let mut res = String::new();
     akin! {
         let &a = [1, 2, 3, 4];
@@ -68,6 +67,18 @@ fn multiple_diff_len() {
     }
     
     assert_eq!(res, "1 + 3 = 4\n2 + 2 = 4\n3 + 2 = 5\n4 + 2 = 6\n")
+}
+
+#[test]
+fn multiple_diff_len2() {
+    use std::fmt::Write;
+    let mut res = String::new();
+    akin! {
+        let &v1 = [c];
+        let &v2 = [a, b];
+        writeln!(&mut res, "*v1*v2").unwrap();
+    }
+    assert_eq!(res, "ca\ncb\n")
 }
 
 #[test]
