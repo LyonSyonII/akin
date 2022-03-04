@@ -50,8 +50,8 @@ akin! {
         //
     ]
 
-    let num = [1,    2,    3, 4];
-    let res = [1, 1.41, 1.73, 2];
+    let &num = [1,    2,    3, 4];
+    let &res = [1, 1.41, 1.73, 2];
     let &branches = {
         *num => Ok(*res),
     }
