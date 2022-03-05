@@ -19,7 +19,7 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 /// ```
 /// Will get copied 2 times, because the variable `&var` has 2 values.
 /// 
-/// If a used variable has less values than an other, the last one will be used.
+/// If a used variable has less values than another, the last one will be used.
 /// ```
 /// # use akin::akin;
 /// akin! {
@@ -33,7 +33,34 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 /// println!("ca");
 /// println!("cb");
 /// ```
-/// 
+/// All code in variables must be enclosed in brackets `{...}`.
+/// ```
+/// # use akin::akin;
+/// akin! {
+///     let &var = [-1, 1];
+///     let &code = [
+///         {
+///             println!("true");
+///         },
+///         {
+///             println!("false");
+///         }
+///     ];
+///     
+///     if *var < 0 {
+///         *code
+///     }
+/// }
+/// ```
+/// Will expand to
+/// ```rust
+/// if -1 < 0 {
+///     println!("true");
+/// }
+/// if 1 < 0 {
+///     println!("false")
+/// }
+/// ```
 /// ## Example
 /// ```
 /// # use akin::akin;
@@ -62,25 +89,134 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 /// }
 /// ```
 /// 
+/// ## NONE
+/// `NONE` is the way you can tell `akin` to simply skip that value and not write anything.  
+/// It is useful for when you want to have elements in a duplication that do not have to be in the others.
+/// ```
+/// # use akin::akin;
+/// akin! {
+///     let &num = [1, 2, 3];
+///     let &type = [u32];
+///     let &code = [
+///         NONE,
+///         {
+///             .pow(2)
+///         }
+///     ];
+/// 
+///     println!("*num^2 = {}", #*num*type*code);
+/// }
+/// ```
+/// 
 /// ## Raw modifier
-/// By default, `akin` places a space between all identifiers.
+/// By default, `akin` places a space between all identifiers.  
 /// Sometimes, this is not desirable, for example, if trying to interpolate between a function name
-/// ```ignore
+/// ```compile_fail
+/// # use akin::akin;
+/// akin! {
 ///     let &name = [1];
-///     fn _*name()...
-///     
-///     // Will get wrongly expanded because '_' is an identifier
-///     fn _ 1()
+///     fn _*name()
+///     # {}
+/// }
+/// ```
+/// Will get wrongly expanded because '_' is an identifier
+/// ```compile_fail
+/// fn _ 1()
 /// ```
 /// To avoid it, use the raw modifier `#`, making the identifier next to the one it affects to not be separated
-/// ```ignore    
-/// let &name = [1];
-/// fn #_*name()... // *name() is affected by the modifier
-/// 
-/// // Will get correctly expanded to
-/// fn _1()
 /// ```
+/// # use akin::akin;
+/// akin! {  
+///     let &name = [1];
+///     fn #_*name() // *name() is affected by the modifier
+/// # {} 
+/// }
+/// # _1();
+/// ```
+/// Will get correctly expanded to
+/// ```
+/// fn _1()
+/// # {}
+/// ```
+/// 
 /// This is a limitation on proc_macro parsing, so I doubt it'll be fixed soon.
+/// 
+/// ## More examples
+/// ```
+/// trait Sqrt {
+///     fn dumb_sqrt(self) -> Result<f64, &'static str>;
+/// }
+/// 
+/// # use akin::akin;
+/// akin! {
+///     let &int_type = [i64, u64];
+///     let &negative_check = [
+///         {
+///             if self < 0 {
+///                 return Err("Sqrt of negative number")
+///             }
+///         }, 
+///         NONE
+///     ];
+///     
+///     let &num = [1,     2,    3,  4];
+///     let &res = [1., 1.41, 1.73,  2.];
+///     let &branch = {
+///         *num => Ok(*res),
+///     };
+/// 
+///     impl Sqrt for *int_type {
+///         fn dumb_sqrt(self) -> Result<f64, &'static str> {
+///             *negative_check
+///             
+///             match self {
+///                 *branch
+///                 _ => Err("Sqrt of num not in [1, 4]")
+///             }
+///         }
+///     }
+/// }
+/// 
+/// # assert_eq!(10i64.dumb_sqrt(), Err("Sqrt of num not in [1, 4]"));
+/// # assert_eq!(15u64.dumb_sqrt(), Err("Sqrt of num not in [1, 4]"));
+/// # assert_eq!(2u64.dumb_sqrt(), Ok(1.41));
+/// # assert_eq!(3i64.dumb_sqrt(), Ok(1.73));
+/// # assert_eq!((-5i64).dumb_sqrt(), Err("Sqrt of negative number"));
+/// ```
+/// Is expanded to:
+/// ```
+/// trait Sqrt {
+///     fn dumb_sqrt(self) -> Result<f64, &'static str>;
+/// }
+/// 
+/// impl Sqrt for i64 {
+///     fn dumb_sqrt(self) -> Result<f64, &'static str> {
+///         if self < 0 {
+///             return Err("Sqrt of negative number")
+///         }
+///         
+///         match self {
+///             1 => Ok(1.),
+///             2 => Ok(1.41),
+///             3 => Ok(1.73),
+///             4 => Ok(2.),
+///             _ => Err("Sqrt of num not in [1, 4]")
+///         }
+///     }
+/// }
+/// 
+/// impl Sqrt for u64 {
+///     fn dumb_sqrt(self) -> Result<f64, &'static str> {
+///         match self {
+///             1 => Ok(1.),
+///             2 => Ok(1.41),
+///             3 => Ok(1.73),
+///             4 => Ok(2.),
+///             _ => Err("Sqrt of num not in [1, 4]")
+///         }
+///     }
+/// }
+/// ```
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
     //panic!("Tokens: {input:#?}");
@@ -114,8 +250,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
     //let tokens = format!("vars: {:#?}", vars);
-    //panic!("{tokens}");
-    //panic!("\nVars: {vars:#?}\nRaw: {out_raw}\nOut: {out}\n");
+    panic!("\nVars: {vars:#?}\nRaw: {out_raw}\nOut: {out}\n");
 
     out.parse().unwrap()
 }
