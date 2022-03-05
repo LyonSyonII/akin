@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use proc_macro::{Delimiter, TokenTree, Punct};
 
 
@@ -250,7 +252,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
     //let tokens = format!("vars: {:#?}", vars);
-    panic!("\nVars: {vars:#?}\nRaw: {out_raw}\nOut: {out}\n");
+    //panic!("\nVars: {vars:#?}\nRaw: {out_raw}\nOut: {out}\n");
 
     out.parse().unwrap()
 }
@@ -268,8 +270,10 @@ fn parse_var(
     let group = tokens.next().expect("akin: expected code to duplicate");
     if let TokenTree::Group(group) = &group {
         if group.delimiter() == Delimiter::Bracket {
+            let mut add = String::new();
             for var in group.stream() {
-                let txt = if let TokenTree::Group(group) = &var {
+                let txt = take(&mut add);
+                let new = if let TokenTree::Group(group) = &var {
                     if group.delimiter() == Delimiter::Brace {
                         group
                             .stream()
@@ -278,14 +282,18 @@ fn parse_var(
                     } else {
                         var.to_string()
                     }
-                } else {
+                } else if matches!(&var, TokenTree::Punct(p) if p.as_char() != ',') {
+                    add = var.to_string();
+                    continue;
+                } 
+                else {
                     var.to_string()
                 };
-
-                if txt == "NONE" {
+                
+                if new == "NONE" {
                     values.push(String::new())
-                } else if txt != "," {
-                    values.push(duplicate(&txt, vars));
+                } else if new != "," {
+                    values.push(duplicate(&(txt + &new), vars));
                 }
             }
         } else {
@@ -367,11 +375,16 @@ fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
     } 
     else if let TokenTree::Punct(p) = &prev {
         *prev = if p.as_char() == '#' {
-            TokenTree::Punct(Punct::new('$', proc_macro::Spacing::Joint))
+            if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '*') {
+                prev.clone()
+            } else {
+                TokenTree::Punct(Punct::new('$', proc_macro::Spacing::Joint))
+            }
+            
         } else {
             tt.clone()
         };
-
+        
         format!("{a}{tt}")
         
     } else {
