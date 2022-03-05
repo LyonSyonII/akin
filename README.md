@@ -171,16 +171,17 @@ let name = 5; // 'name' is an identifier
 ```
 Sometimes, this is not desirable, for example, if trying to interpolate between a function name
 ```rust
-    let &name = [1];
-    fn _*name()...
-    
-    // Will get wrongly expanded to, because '_' is an identifier
-    fn _ 1()
+let &name = [1];
+fn _*name()...
+
+// Will get wrongly expanded because '_' is an identifier
+fn _ 1()
 ```
 To avoid it, use the raw `#` modifier, making the identifier next to the one it affects to not be separated.
 ```rust    
 let &name = [1];
 fn #_*name()... // *name() is affected by the modifier
+
 // Will get correctly expanded to
 fn _1()
 ```
