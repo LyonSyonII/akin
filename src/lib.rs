@@ -107,7 +107,8 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 ///         }
 ///     ];
 /// 
-///     println!("*num^2 = {}", #*num u32*code);  // #*num is necessary to ensure the type is written correctly (it would be "1 u32" without it)
+///     println!("*num^2 = {}", #*num u32*code);  
+///     // #*num is necessary to ensure the type is written correctly (it would be "1 u32" without it)
 ///     # writeln!(&mut out, "*num^2 = *numu32*code");
 /// }
 /// # assert_eq!(out, "1^2 = 1u32\n2^2 = 2u32.pow( 2)\n3^2 = 3u32.pow( 2)\n");
@@ -143,6 +144,7 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 /// fn _1()
 /// # {}
 /// ```
+/// Inside string literals `"..."` it is not necessary to use the modifier, as Rust does not count them as identifiers.
 /// 
 /// This is a limitation on proc_macro parsing, so I doubt it'll be fixed soon.
 /// 
