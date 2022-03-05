@@ -100,7 +100,6 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 /// # let mut out = String::new();
 /// akin! {
 ///     let &num = [1, 2, 3];
-///     let &type = [u32];
 ///     let &code = [
 ///         NONE,
 ///         {
@@ -108,8 +107,8 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 ///         }
 ///     ];
 /// 
-///     println!("*num^2 = {}", #*num*type*code); // #*num is necessary to ensure the type is written correctly (it would be "1 u32" without it)
-///     # writeln!(&mut out, "*num^2 = *num*type*code");
+///     println!("*num^2 = {}", #*num u32*code);  // #*num is necessary to ensure the type is written correctly (it would be "1 u32" without it)
+///     # writeln!(&mut out, "*num^2 = *numu32*code");
 /// }
 /// # assert_eq!(out, "1^2 = 1u32\n2^2 = 2u32.pow( 2)\n3^2 = 3u32.pow( 2)\n");
 /// ```

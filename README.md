@@ -162,6 +162,25 @@ if 1 < 0 {
 
 Check the [tests/](https://github.com/LyonSyonII/akin/tree/main/tests) folder of the repository for more examples.
 
+## NONE
+`NONE` is the way you can tell `akin` to simply skip that value and not write anything.  
+It is useful for when you want to have elements in a duplication that do not have to be in the others.
+```rust
+
+akin! {
+    let &num = [1, 2, 3];
+    let &code = [
+        NONE,
+        {
+            .pow(2)
+        }
+    ];
+    
+    println!("*num^2 = {}", #*num u32*code);
+    // #*num is necessary to ensure the type is written correctly (it would be "1 u32" without it)
+}
+```
+
 ## Raw modifier
 By default, `akin` places a space between all identifiers
 
