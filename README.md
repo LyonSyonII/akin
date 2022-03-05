@@ -28,7 +28,7 @@ akin! {
     let &branch = {
         *num => Ok(*res),
     };
-
+    
     impl Sqrt for *int_type {
         fn dumb_sqrt(self) -> Result<f64, &'static str> {
             *negative_check
@@ -54,10 +54,10 @@ impl Sqrt for i64 {
         }
         
         match self {
-            1 => Ok(1),
+            1 => Ok(1.),
             2 => Ok(1.41),
             3 => Ok(1.73),
-            4 => Ok(2),
+            4 => Ok(2.),
             _ => Err("Sqrt of num not in [1, 4]")
         }
     }
@@ -66,10 +66,10 @@ impl Sqrt for i64 {
 impl Sqrt for u64 {
     fn dumb_sqrt(self) -> Result<f64, &'static str> {
         match self {
-            1 => Ok(1),
+            1 => Ok(1.),
             2 => Ok(1.41),
             3 => Ok(1.73),
-            4 => Ok(2),
+            4 => Ok(2.),
             _ => Err("Sqrt of num not in [1, 4]")
         }
     }
