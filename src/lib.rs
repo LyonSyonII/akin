@@ -278,7 +278,8 @@ fn parse_var(
             for var in group.stream() {
                 let txt = take(&mut add);
                 let new = match &var {
-                    TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
+                    TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => 
+                        g
                         .stream()
                         .into_iter()
                         .fold(String::new(), |acc, tt| fold(acc, tt, &mut prev)),
@@ -304,7 +305,7 @@ fn parse_var(
         }
 
         if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
-            panic!("akin: expected ';' on {name}'s declaration end");
+            panic!("akin: expected ';' on {}'s declaration end", name.replacen('*', "&", 1));
         }
     }
 
@@ -359,20 +360,16 @@ fn get_delimiters(delimiter: Delimiter) -> (char, char) {
 }
 
 fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
-    if let TokenTree::Group(group) = &tt {
+    let ret = if let TokenTree::Group(group) = &tt {
         let (start, end) = get_delimiters(group.delimiter());
         let group = group
             .stream()
             .into_iter()
             .fold(String::new(), |acc, tt| fold(acc, tt, prev));
-        *prev = tt;
         format!("{a}{start}{group}{end}")
     } else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
-        *prev = tt.clone();
         a // skip character
-    } else if let TokenTree::Punct(p) = prev.clone() {
-        *prev = tt.clone();
-
+    } else if let TokenTree::Punct(p) = prev {
         // Case '*' => To make variable formatting easier ('*var' instead of '* var')
         // Case '~' => Behaviour of the '~' modifier
         if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~') {
@@ -381,7 +378,9 @@ fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
             format!("{a} {tt}")
         }
     } else {
-        *prev = tt.clone();
         format!("{a} {tt}")
-    }
+    };
+
+    *prev = tt;
+    ret
 }
