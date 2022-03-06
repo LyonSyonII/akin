@@ -205,7 +205,7 @@ fn _ 1()
 To avoid it, use the joint modifier `~`, making the next identifier not to be separated.
 ```rust    
 let &name = [1];
-fn #_*name()... // *name() is affected by the modifier
+fn _~*name()... // *name() is affected by the modifier
 
 // Will get correctly expanded to
 fn _1()
