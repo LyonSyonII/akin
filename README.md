@@ -1,10 +1,16 @@
 # akin
-Crate for writing repetitive code easier and faster.
-Check [Syntax](#syntax) for information about how to use it.
+A zero-dependency crate for writing repetitive code easier and faster.  
+Check [Syntax](#syntax) for information about how to use it.  
+
+- [Why?](#why)
+- [Example](#example)
+- [Syntax](#syntax)
+- [NONE](#none)
+- [Joint modifier](#joint-modifier)
 
 ## Why?
 I've found myself having to write a lot of repetitive code (mostly when matching against enums in parsing).  
-The fantastic [duplicate](https://crates.io/crates/duplicate) had a sort of unintuitive syntax, so I decided to make my own tool.
+The fantastic [duplicate](https://crates.io/crates/duplicate) had an unintuitive syntax for me, so I decided to make my own tool.
 
 ## Example
 ```rust
@@ -181,7 +187,7 @@ akin! {
 }
 ```
 
-## Raw modifier
+## Joint modifier
 By default, `akin` places a space between all identifiers
 
 ```rust    
@@ -196,7 +202,7 @@ fn _*name()...
 // Will get wrongly expanded because '_' is an identifier
 fn _ 1()
 ```
-To avoid it, use the raw `#` modifier, making the identifier next to the one it affects to not be separated.
+To avoid it, use the joint modifier `~`, making the next identifier not to be separated.
 ```rust    
 let &name = [1];
 fn #_*name()... // *name() is affected by the modifier

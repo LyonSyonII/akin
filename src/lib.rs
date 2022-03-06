@@ -129,7 +129,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 /// ```compile_fail
 /// fn _ 1()
 /// ```
-/// To avoid it, use the joint modifier `~`, making the next identifier to be written without a space in between.
+/// To avoid it, use the joint modifier `~`, making the next identifier not to be separated.
 /// ```
 /// # use akin::akin;
 /// akin! {  
@@ -308,9 +308,9 @@ fn parse_var(
                 .fold(String::new(), |acc, tt| fold(acc, tt, &mut prev));
             values.push(duplicate(&fold, vars));
         }
-
-        if tokens.next().expect("akin: expected ';'").to_string() != ";" {
-            panic!("akin: expected ';' on variable end");
+        
+        if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
+            panic!("akin: expected ';' on {name}'s declaration end");
         }
     }
 
@@ -376,13 +376,13 @@ fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
     } 
     else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
         *prev = tt.clone();
-        a
-        // Add space for correct formatting
-        // fn #_*name => fn_*name instead of fn _*name
+        a // skip character
     }
     else if let TokenTree::Punct(p) = prev.clone() {
         *prev = tt.clone();
         
+        // Case '*' => To make variable formatting easier ('*var' instead of '* var')
+        // Case '~' => Behaviour of the '~' modifier
         if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'){
             format!("{a}{tt}")
         }
