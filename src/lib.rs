@@ -1,7 +1,6 @@
 use std::mem::take;
 
-use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
-
+use proc_macro::{Delimiter, Spacing, TokenTree};
 
 #[proc_macro]
 /// Duplicates the given code and substitutes specific identifiers for different code snippets in each duplicate.
@@ -9,7 +8,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 /// ## Usage
 /// Write each identifier following `let &ident = [v1, v2, v3, ...]`,
 /// and use them in the snippet you want to duplicate with `*ident`.
-/// 
+///
 /// Code snippets are copied `max(used_vars.values)` times.
 /// ```
 /// # use akin::akin;
@@ -20,7 +19,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 
 /// ```
 /// Will get copied 2 times, because the variable `&var` has 2 values.
-/// 
+///
 /// If a used variable has less values than another, the last one will be used.
 /// ```
 /// # use akin::akin;
@@ -90,7 +89,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 ///    println!("6 + 6 = 12");
 /// }
 /// ```
-/// 
+///
 /// ## NONE
 /// `NONE` is the way you can tell `akin` to simply skip that value and not write anything.  
 /// It is useful for when you want to have elements in a duplication that do not have to be in the others.
@@ -106,14 +105,14 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 ///             .pow(2)
 ///         }
 ///     ];
-/// 
+///
 ///     println!("*num^2 = {}", *num~u32*code);  
 ///     // *num~u32 is necessary to ensure the type is written correctly (it would be "1 u32" without it)
 ///     # writeln!(&mut out, "*num^2 = *numu32*code");
 /// }
 /// # assert_eq!(out, "1^2 = 1u32\n2^2 = 2u32 . pow( 2)\n3^2 = 3u32 . pow( 2)\n");
 /// ```
-/// 
+///
 /// ## Joint modifier
 /// By default, `akin` places a space between all identifiers.  
 /// Sometimes, this is not desirable, for example, if trying to interpolate between a function name
@@ -135,7 +134,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 /// akin! {  
 ///     let &name = [1];
 ///     fn _~*name() // *name is affected by the modifier
-/// # {} 
+/// # {}
 /// }
 /// # _1();
 /// ```
@@ -145,15 +144,15 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 /// # {}
 /// ```
 /// Inside string literals `"..."` it is not necessary to use the modifier, as Rust does not count them as identifiers.
-/// 
+///
 /// This is a limitation on proc_macro parsing, so I doubt it'll be fixed soon.
-/// 
+///
 /// ## More examples
 /// ```
 /// trait Sqrt {
 ///     fn dumb_sqrt(self) -> Result<f64, &'static str>;
 /// }
-/// 
+///
 /// # use akin::akin;
 /// akin! {
 ///     let &int_type = [i64, u64];
@@ -162,7 +161,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 ///             if self < 0 {
 ///                 return Err("Sqrt of negative number")
 ///             }
-///         }, 
+///         },
 ///         NONE
 ///     ];
 ///     
@@ -171,7 +170,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 ///     let &branch = {
 ///         *num => Ok(*res),
 ///     };
-/// 
+///
 ///     impl Sqrt for *int_type {
 ///         fn dumb_sqrt(self) -> Result<f64, &'static str> {
 ///             *negative_check
@@ -183,7 +182,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 ///         }
 ///     }
 /// }
-/// 
+///
 /// # assert_eq!(10i64.dumb_sqrt(), Err("Sqrt of num not in [1, 4]"));
 /// # assert_eq!(15u64.dumb_sqrt(), Err("Sqrt of num not in [1, 4]"));
 /// # assert_eq!(2u64.dumb_sqrt(), Ok(1.41));
@@ -195,7 +194,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 /// trait Sqrt {
 ///     fn dumb_sqrt(self) -> Result<f64, &'static str>;
 /// }
-/// 
+///
 /// impl Sqrt for i64 {
 ///     fn dumb_sqrt(self) -> Result<f64, &'static str> {
 ///         if self < 0 {
@@ -211,7 +210,7 @@ use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 ///         }
 ///     }
 /// }
-/// 
+///
 /// impl Sqrt for u64 {
 ///     fn dumb_sqrt(self) -> Result<f64, &'static str> {
 ///         match self {
@@ -228,7 +227,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
-    
+
     let mut first = tokens.next().expect("akin: expected code to duplicate");
     let mut second = tokens
         .next()
@@ -278,21 +277,16 @@ fn parse_var(
             let mut add = String::new();
             for var in group.stream() {
                 let txt = take(&mut add);
-                let new = if let TokenTree::Group(group) = &var {
-                    if group.delimiter() == Delimiter::Brace {
-                        group
-                            .stream()
-                            .into_iter()
-                            .fold(String::new(), |acc, tt| fold(acc, tt, &mut prev))
-                    } else {
-                        var.to_string()
+                let new = match &var {
+                    TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
+                        .stream()
+                        .into_iter()
+                        .fold(String::new(), |acc, tt| fold(acc, tt, &mut prev)),
+                    TokenTree::Punct(p) if p.as_char() != ',' => {
+                        add = var.to_string();
+                        continue;
                     }
-                } else if matches!(&var, TokenTree::Punct(p) if p.as_char() != ',') {
-                    add = var.to_string();
-                    continue;
-                } 
-                else {
-                    var.to_string()
+                    _ => var.to_string(),
                 };
                 
                 if new == "NONE" {
@@ -308,7 +302,7 @@ fn parse_var(
                 .fold(String::new(), |acc, tt| fold(acc, tt, &mut prev));
             values.push(duplicate(&fold, vars));
         }
-        
+
         if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
             panic!("akin: expected ';' on {name}'s declaration end");
         }
@@ -330,8 +324,8 @@ fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
         }
         out += &temp;
     }
-
-    if out == String::new() {
+    
+    if out.is_empty() {
         stream.into()
     } else {
         out
@@ -373,20 +367,17 @@ fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
             .fold(String::new(), |acc, tt| fold(acc, tt, prev));
         *prev = tt;
         format!("{a}{start}{group}{end}")
-    } 
-    else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
+    } else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
         *prev = tt.clone();
         a // skip character
-    }
-    else if let TokenTree::Punct(p) = prev.clone() {
+    } else if let TokenTree::Punct(p) = prev.clone() {
         *prev = tt.clone();
-        
+
         // Case '*' => To make variable formatting easier ('*var' instead of '* var')
         // Case '~' => Behaviour of the '~' modifier
-        if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'){
+        if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~') {
             format!("{a}{tt}")
-        }
-        else {
+        } else {
             format!("{a} {tt}")
         }
     } else {

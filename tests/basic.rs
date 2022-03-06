@@ -45,14 +45,14 @@ fn _match() {
 #[test]
 fn multiple_same_len() {
     use std::fmt::Write;
-    
+
     let mut res = String::new();
     akin! {
         let &a = [1, 2, 3];
         let &b = [3, 2, 1];
         writeln!(&mut res, "*a + *b = {}", *a + *b).unwrap();
     }
-    
+
     assert_eq!(res, "1 + 3 = 4\n2 + 2 = 4\n3 + 1 = 4\n")
 }
 
@@ -65,7 +65,7 @@ fn multiple_diff_len() {
         let &b = [3, 2];
         writeln!(&mut res, "*a + *b = {}", *a + *b).unwrap();
     }
-    
+
     assert_eq!(res, "1 + 3 = 4\n2 + 2 = 4\n3 + 2 = 5\n4 + 2 = 6\n")
 }
 
@@ -86,7 +86,7 @@ fn _trait() {
     trait ToBytes {
         fn to_bytes(self) -> Vec<u8>;
     }
-    
+
     akin! {
         let &int_type = [u8, u16, u32, u64];
         impl ToBytes for *int_type {
@@ -95,11 +95,14 @@ fn _trait() {
             }
         }
     }
-    
+
     assert_eq!(vec![128], 128u8.to_bytes());
     assert_eq!(vec![1, 2], 513u16.to_bytes());
     assert_eq!(vec![160, 134, 1, 0], 100_000u32.to_bytes());
-    assert_eq!(vec![0, 232, 118, 72, 23, 0, 0, 0], 100_000_000_000u64.to_bytes());
+    assert_eq!(
+        vec![0, 232, 118, 72, 23, 0, 0, 0],
+        100_000_000_000u64.to_bytes()
+    );
 }
 
 #[test]
@@ -123,7 +126,7 @@ fn readme_example() {
     trait Sqrt {
         fn dumb_sqrt(self) -> Result<f64, &'static str>;
     }
-    
+
     akin! {
         let &int_type = [i64, u64];
         let &negative_check = [
@@ -131,20 +134,20 @@ fn readme_example() {
                 if self < 0 {
                     return Err("Sqrt of negative number")
                 }
-            }, 
+            },
             NONE
         ];
-        
+
         let &num = [1,     2,    3,  4];
         let &res = [1., 1.41, 1.73,  2.];
         let &branch = {
             *num => Ok(*res),
         };
-        
+
         impl Sqrt for *int_type {
             fn dumb_sqrt(self) -> Result<f64, &'static str> {
                 *negative_check
-                
+
                 match self {
                     *branch
                     _ => Err("Sqrt of num not in [1, 4]")
