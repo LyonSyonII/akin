@@ -106,7 +106,7 @@ fn _trait() {
 fn fn_raw() {
     akin! {
         let &name = [1, 2, 3, 4, 5];
-        fn #_*name() -> u32 {
+        fn _~*name() -> u32 {
             *name
         }
     }

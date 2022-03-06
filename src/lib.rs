@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use proc_macro::{Delimiter, TokenTree, Punct};
+use proc_macro::{Delimiter, TokenTree, Punct, Spacing};
 
 
 #[proc_macro]
@@ -107,14 +107,14 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 ///         }
 ///     ];
 /// 
-///     println!("*num^2 = {}", #*num u32*code);  
-///     // #*num is necessary to ensure the type is written correctly (it would be "1 u32" without it)
+///     println!("*num^2 = {}", *num~u32*code);  
+///     // *num~u32 is necessary to ensure the type is written correctly (it would be "1 u32" without it)
 ///     # writeln!(&mut out, "*num^2 = *numu32*code");
 /// }
-/// # assert_eq!(out, "1^2 = 1u32\n2^2 = 2u32.pow( 2)\n3^2 = 3u32.pow( 2)\n");
+/// # assert_eq!(out, "1^2 = 1u32\n2^2 = 2u32 . pow( 2)\n3^2 = 3u32 . pow( 2)\n");
 /// ```
 /// 
-/// ## Raw modifier
+/// ## Joint modifier
 /// By default, `akin` places a space between all identifiers.  
 /// Sometimes, this is not desirable, for example, if trying to interpolate between a function name
 /// ```compile_fail
@@ -129,12 +129,12 @@ use proc_macro::{Delimiter, TokenTree, Punct};
 /// ```compile_fail
 /// fn _ 1()
 /// ```
-/// To avoid it, use the raw modifier `#`, making the identifier next to the one it affects to not be separated
+/// To avoid it, use the joint modifier `~`, making the next identifier to be written without a space in between.
 /// ```
 /// # use akin::akin;
 /// akin! {  
 ///     let &name = [1];
-///     fn #_*name() // *name() is affected by the modifier
+///     fn _~*name() // *name is affected by the modifier
 /// # {} 
 /// }
 /// # _1();
@@ -374,24 +374,21 @@ fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
         *prev = tt;
         format!("{a}{start}{group}{end}")
     } 
-    else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '#') {
+    else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
         *prev = tt.clone();
-        format!("{a} ")
-    } 
-    else if let TokenTree::Punct(p) = &prev {
-        *prev = if p.as_char() == '#' {
-            if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '*') {
-                prev.clone()
-            } else {
-                TokenTree::Punct(Punct::new('$', proc_macro::Spacing::Joint))
-            }
-            
-        } else {
-            tt.clone()
-        };
+        a
+        // Add space for correct formatting
+        // fn #_*name => fn_*name instead of fn _*name
+    }
+    else if let TokenTree::Punct(p) = prev.clone() {
+        *prev = tt.clone();
         
-        format!("{a}{tt}")
-        
+        if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'){
+            format!("{a}{tt}")
+        }
+        else {
+            format!("{a} {tt}")
+        }
     } else {
         *prev = tt.clone();
         format!("{a} {tt}")
