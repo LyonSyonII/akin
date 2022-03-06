@@ -182,8 +182,8 @@ akin! {
         }
     ];
     
-    println!("*num^2 = {}", #*num u32*code);
-    // #*num is necessary to ensure the type is written correctly (it would be "1 u32" without it)
+    println!("*num^2 = {}", *num~u32*code);
+    // *num~u32 is necessary to ensure the type is written correctly (it would be "1 u32" otherwise)
 }
 ```
 
@@ -205,7 +205,7 @@ fn _ 1()
 To avoid it, use the joint modifier `~`, making the next identifier not to be separated.
 ```rust    
 let &name = [1];
-fn _~*name()... // *name() is affected by the modifier
+fn _~*name()... // *name is affected by the modifier
 
 // Will get correctly expanded to
 fn _1()
