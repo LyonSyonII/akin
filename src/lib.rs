@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use proc_macro::{Delimiter, Spacing, TokenTree};
+use proc_macro::{Delimiter, Ident, Spacing, TokenTree};
 
 #[proc_macro]
 /// Duplicates the given code and substitutes specific identifiers for different code snippets in each duplicate.
@@ -233,7 +233,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .next()
         .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
     while matches!(&first, TokenTree::Ident(ident) if ident.to_string() == "let")
-        && matches!(&second, TokenTree::Punct(punct) if punct.to_string() == "&")
+        && matches!(&second, TokenTree::Punct(punct) if punct.as_char() == '&')
     {
         vars.push(parse_var(&mut tokens, &vars));
         first = tokens
@@ -244,14 +244,13 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
     }
 
-    let mut previous = second.clone();
-
-    let init = fold(
-        fold(String::new(), first, &mut previous),
+    let mut previous = first.clone();
+    let init = fold_tt(
+        fold_tt(String::new(), first, &mut previous),
         second,
         &mut previous,
     );
-    let out_raw = tokens.fold(init, |acc, tt| fold(acc, tt, &mut previous));
+    let out_raw = tokens.fold(init, |acc, tt| fold_tt(acc, tt, &mut previous));
     let out = duplicate(&out_raw, &vars);
 
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
@@ -272,41 +271,47 @@ fn parse_var(
     let mut prev = tokens.next().expect("akin: expected code to duplicate"); // skip '='
     let mut values: Vec<String> = Vec::new();
     let group = tokens.next().expect("akin: expected code to duplicate");
-    if let TokenTree::Group(group) = &group {
-        if group.delimiter() == Delimiter::Bracket {
-            let mut add = String::new();
-            for var in group.stream() {
-                let txt = take(&mut add);
-                let new = match &var {
-                    TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => 
-                        g
-                        .stream()
-                        .into_iter()
-                        .fold(String::new(), |acc, tt| fold(acc, tt, &mut prev)),
-                    TokenTree::Punct(p) if p.as_char() != ',' => {
-                        add = var.to_string();
-                        continue;
-                    }
-                    _ => var.to_string(),
-                };
-                
-                if new == "NONE" {
-                    values.push(String::new())
-                } else if new != "," {
-                    values.push(duplicate(&(txt + &new), vars));
-                }
-            }
-        } else {
-            let fold = group
-                .stream()
-                .into_iter()
-                .fold(String::new(), |acc, tt| fold(acc, tt, &mut prev));
-            values.push(duplicate(&fold, vars));
-        }
+    let group = if let TokenTree::Group(group) = &group {
+        group
+    } else {
+        return (name, values);
+    };
 
-        if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
-            panic!("akin: expected ';' on {}'s declaration end", name.replacen('*', "&", 1));
+    if group.delimiter() == Delimiter::Bracket {
+        let mut add = String::new();
+        for var in group.stream() {
+            let txt = take(&mut add);
+            let new = match &var {
+                TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
+                    .stream()
+                    .into_iter()
+                    .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev)),
+                TokenTree::Punct(p) if p.as_char() != ',' => {
+                    add = var.to_string();
+                    continue;
+                }
+                _ => var.to_string(),
+            };
+
+            if new == "NONE" {
+                values.push(String::new())
+            } else if new != "," {
+                values.push(duplicate(&(txt + &new), vars));
+            }
         }
+    } else {
+        let fold = group
+            .stream()
+            .into_iter()
+            .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev));
+        values.push(duplicate(&fold, vars));
+    }
+
+    if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
+        panic!(
+            "akin: expected ';' on end of {}'s declaration",
+            name.replacen('*', "&", 1)
+        );
     }
 
     (name, values)
@@ -325,7 +330,7 @@ fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
         }
         out += &temp;
     }
-    
+
     if out.is_empty() {
         stream.into()
     } else {
@@ -359,24 +364,21 @@ fn get_delimiters(delimiter: Delimiter) -> (char, char) {
     }
 }
 
-fn fold(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
-    let ret = if let TokenTree::Group(group) = &tt {
-        let (start, end) = get_delimiters(group.delimiter());
-        let group = group
+fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
+    let ret = if let TokenTree::Group(g) = &tt {
+        let (start, end) = get_delimiters(g.delimiter());
+        let group = g
             .stream()
             .into_iter()
-            .fold(String::new(), |acc, tt| fold(acc, tt, prev));
+            .fold(String::new(), |acc, tt| fold_tt(acc, tt, prev));
         format!("{a}{start}{group}{end}")
     } else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
         a // skip character
-    } else if let TokenTree::Punct(p) = prev {
+    } else if matches!(&prev, TokenTree::Punct(p) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'))
+    {
         // Case '*' => To make variable formatting easier ('*var' instead of '* var')
         // Case '~' => Behaviour of the '~' modifier
-        if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~') {
-            format!("{a}{tt}")
-        } else {
-            format!("{a} {tt}")
-        }
+        format!("{a}{tt}")
     } else {
         format!("{a} {tt}")
     };
