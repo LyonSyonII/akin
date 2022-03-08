@@ -244,7 +244,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .next()
             .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
     }
-
+    
     let mut previous = first.clone();
     let init = fold_tt(
         fold_tt(String::new(), first, &mut previous),
@@ -320,16 +320,15 @@ fn parse_var(
 
 fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
     let (vars, times) = get_used_vars(stream, vars);
-    let mut out = String::new();
+    let mut out = String::with_capacity(stream.len() * times);
     for i in 0..times {
-        let mut temp = stream.to_owned();
+        out += stream;
         for var in &vars {
-            temp = temp.replace(
+            out = out.replace(
                 &var.0,
                 var.1.get(i).unwrap_or_else(|| var.1.last().unwrap()),
             )
         }
-        out += &temp;
     }
 
     if out.is_empty() {
@@ -343,7 +342,7 @@ fn get_used_vars<'a>(
     stream: &str,
     vars: &'a [(String, Vec<String>)],
 ) -> (Vec<&'a (String, Vec<String>)>, usize) {
-    let mut used = Vec::new();
+    let mut used = Vec::with_capacity(vars.len());
     let mut times = 0;
     
     for var in vars {
