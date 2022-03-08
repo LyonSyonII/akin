@@ -2,7 +2,6 @@ use std::mem::take;
 
 use proc_macro::{Delimiter, Spacing, TokenTree};
 
-
 /// Duplicates the given code and substitutes specific identifiers for different code snippets in each duplicate.
 ///
 /// ## Usage
@@ -225,24 +224,20 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// ```
 #[proc_macro]
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut vars: Vec<(String, Vec<String>)> = Vec::new();
+    let mut vars: Vec<(String, Vec<String>)> = Vec::with_capacity(2);
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
-    
+
     let mut first = tokens.next().expect("akin: expected code to duplicate");
     let mut second = tokens.next().expect("akin: expected code to duplicate");
     while matches!(&first, TokenTree::Ident(id) if id.to_string() == "let")
         && matches!(&second, TokenTree::Punct(p) if p.as_char() == '&')
     {
         vars.push(parse_var(&mut tokens, &vars));
-        first = tokens
-            .next()
-            .expect("akin: expected code to duplicate");
-        second = tokens
-            .next()
-            .expect("akin: expected code to duplicate");
+        first = tokens.next().expect("akin: expected code to duplicate");
+        second = tokens.next().expect("akin: expected code to duplicate");
     }
-    
+
     let mut previous = first.clone();
     let init = fold_tt(
         fold_tt(String::new(), first, &mut previous),
@@ -269,11 +264,12 @@ fn parse_var(
     );
     let mut prev = tokens.next().expect("akin: expected code to duplicate"); // skip '='
     let mut values: Vec<String> = Vec::new();
-    let group = if let TokenTree::Group(g) = tokens.next().expect("akin: expected code to duplicate") {
-        g
-    } else {
-        return (name, values);
-    };
+    let group =
+        if let TokenTree::Group(g) = tokens.next().expect("akin: expected code to duplicate") {
+            g
+        } else {
+            return (name, values);
+        };
 
     if group.delimiter() == Delimiter::Bracket {
         let mut add = String::new();
@@ -281,7 +277,7 @@ fn parse_var(
             let new = match &var {
                 // Case {group} => Variable is code, braces need to be skipped
                 // Case punct   => Variable is punctuation, it will be grouped with the next variable. Workaround for characters like '-' or '!'
-                // Case _       => Variable is a value, it is printed normally. 
+                // Case _       => Variable is a value, it is printed normally.
                 TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
                     .stream()
                     .into_iter()
@@ -343,7 +339,7 @@ fn get_used_vars<'a>(
 ) -> (Vec<&'a (String, Vec<String>)>, usize) {
     let mut used = Vec::with_capacity(vars.len());
     let mut times = 0;
-    
+
     for var in vars {
         if stream.contains(&var.0) {
             used.push(var);
@@ -373,8 +369,7 @@ fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
         format!("{a}{start}{group}{end}")
     } else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
         a // skip character
-    } else if matches!(&prev, TokenTree::Punct(p) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'))
-    {
+    } else if matches!(&prev, TokenTree::Punct(p) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~')) {
         // Case '*' => To make variable formatting simpler ('*var' instead of '* var')
         // Case '~' => Behaviour of the '~' modifier
         format!("{a}{tt}")
