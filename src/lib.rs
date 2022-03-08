@@ -1,8 +1,8 @@
 use std::mem::take;
 
-use proc_macro::{Delimiter, Ident, Spacing, TokenTree};
+use proc_macro::{Delimiter, Spacing, TokenTree};
 
-#[proc_macro]
+
 /// Duplicates the given code and substitutes specific identifiers for different code snippets in each duplicate.
 ///
 /// ## Usage
@@ -223,6 +223,7 @@ use proc_macro::{Delimiter, Ident, Spacing, TokenTree};
 ///     }
 /// }
 /// ```
+#[proc_macro]
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
     //panic!("Tokens: {input:#?}");
@@ -338,16 +339,16 @@ fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
     }
 }
 
-fn get_used_vars(
+fn get_used_vars<'a>(
     stream: &str,
-    vars: &[(String, Vec<String>)],
-) -> (Vec<(String, Vec<String>)>, usize) {
+    vars: &'a [(String, Vec<String>)],
+) -> (Vec<&'a (String, Vec<String>)>, usize) {
     let mut used = Vec::new();
     let mut times = 0;
-
+    
     for var in vars {
         if stream.contains(&var.0) {
-            used.push(var.clone());
+            used.push(var);
             times = times.max(var.1.len());
         }
     }
@@ -376,7 +377,7 @@ fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
         a // skip character
     } else if matches!(&prev, TokenTree::Punct(p) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'))
     {
-        // Case '*' => To make variable formatting easier ('*var' instead of '* var')
+        // Case '*' => To make variable formatting simpler ('*var' instead of '* var')
         // Case '~' => Behaviour of the '~' modifier
         format!("{a}{tt}")
     } else {
