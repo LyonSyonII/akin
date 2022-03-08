@@ -278,7 +278,6 @@ fn parse_var(
     if group.delimiter() == Delimiter::Bracket {
         let mut add = String::new();
         for var in group.stream() {
-            let txt = take(&mut add);
             let new = match &var {
                 // Case {group} => Variable is code, braces need to be skipped
                 // Case punct   => Variable is punctuation, it will be grouped with the next variable. Workaround for characters like '-' or '!'
@@ -297,7 +296,7 @@ fn parse_var(
             if new == "NONE" {
                 values.push(String::new())
             } else if new != "," {
-                values.push(duplicate(&(txt + &new), vars));
+                values.push(duplicate(&(take(&mut add) + &new), vars));
             }
         }
     } else {
