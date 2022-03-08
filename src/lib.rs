@@ -280,6 +280,9 @@ fn parse_var(
         for var in group.stream() {
             let txt = take(&mut add);
             let new = match &var {
+                // Case {group} => Variable is code, braces need to be skipped
+                // Case punct   => Variable is punctuation, it will be grouped with the next variable. Workaround for characters like '-' or '!'
+                // Case _       => Variable is a value, it is printed normally. 
                 TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
                     .stream()
                     .into_iter()
