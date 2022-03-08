@@ -228,21 +228,19 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::new();
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
-
+    
     let mut first = tokens.next().expect("akin: expected code to duplicate");
-    let mut second = tokens
-        .next()
-        .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
-    while matches!(&first, TokenTree::Ident(ident) if ident.to_string() == "let")
-        && matches!(&second, TokenTree::Punct(punct) if punct.as_char() == '&')
+    let mut second = tokens.next().expect("akin: expected code to duplicate");
+    while matches!(&first, TokenTree::Ident(id) if id.to_string() == "let")
+        && matches!(&second, TokenTree::Punct(p) if p.as_char() == '&')
     {
         vars.push(parse_var(&mut tokens, &vars));
         first = tokens
             .next()
-            .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
+            .expect("akin: expected code to duplicate");
         second = tokens
             .next()
-            .unwrap_or_else(|| panic!("akin: expected code to duplicate"));
+            .expect("akin: expected code to duplicate");
     }
     
     let mut previous = first.clone();
@@ -271,9 +269,8 @@ fn parse_var(
     );
     let mut prev = tokens.next().expect("akin: expected code to duplicate"); // skip '='
     let mut values: Vec<String> = Vec::new();
-    let group = tokens.next().expect("akin: expected code to duplicate");
-    let group = if let TokenTree::Group(group) = &group {
-        group
+    let group = if let TokenTree::Group(g) = tokens.next().expect("akin: expected code to duplicate") {
+        g
     } else {
         return (name, values);
     };
