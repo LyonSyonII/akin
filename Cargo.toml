@@ -1,11 +1,14 @@
 [package]
 name = "akin"
+authors = ["Liam Garriga <liam.garriga@tutanota.com>"]
 description = "A crate for writing repetitive code easier and faster."
 version = "0.2.3"
 license = "MIT"
 edition = "2021"
 repository = "https://github.com/lyonsyonii/akin"
 documentation = "https://docs.rs/akin"
+keywords = ["duplicate", "repetitive", "code", "repeat", "multiple"]
+categories = ["development-tools"]
 
 [lib]
 proc-macro = true

@@ -1,4 +1,4 @@
-use std::mem::take;
+use std::{mem::take};
 
 use proc_macro::{Delimiter, Spacing, TokenTree};
 
@@ -227,7 +227,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::with_capacity(2);
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
-
+    
     let mut first = tokens.next().expect("akin: expected code to duplicate");
     let mut second = tokens.next().expect("akin: expected code to duplicate");
     while matches!(&first, TokenTree::Ident(id) if id.to_string() == "let")
@@ -262,6 +262,7 @@ fn parse_var(
         "*{}",
         tokens.next().expect("akin: expected code to duplicate")
     );
+
     let mut prev = tokens.next().expect("akin: expected code to duplicate"); // skip '='
     let mut values: Vec<String> = Vec::new();
     let group =
@@ -273,6 +274,37 @@ fn parse_var(
 
     if group.delimiter() == Delimiter::Bracket {
         let mut add = String::new();
+
+        let mut stream = group.stream().into_iter();
+        
+        while let Some(var) = stream.next() {
+            let mut var = var;
+            let mut new = String::new();
+            while !matches!(&var, TokenTree::Punct(p) if p.as_char() == ',') {
+                new += &match &var {
+                    TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
+                    .stream()
+                    .into_iter()
+                    .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev)),
+
+                    _ => var.to_string(),
+                };
+                
+                if let Some(v) = stream.next() {
+                    var = v;
+                } else {
+                    break;
+                }
+            }
+
+            if new == "NONE" {
+                values.push(String::new())
+            } else {
+                values.push(duplicate(&(take(&mut add) + &new), vars));
+            }
+        }
+        
+        /*
         for var in group.stream() {
             let new = match &var {
                 // Case {group} => Variable is code, braces need to be skipped
@@ -282,10 +314,6 @@ fn parse_var(
                     .stream()
                     .into_iter()
                     .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev)),
-                TokenTree::Punct(p) if p.as_char() != ',' => {
-                    add = var.to_string();
-                    continue;
-                }
                 _ => var.to_string(),
             };
 
@@ -295,6 +323,7 @@ fn parse_var(
                 values.push(duplicate(&(take(&mut add) + &new), vars));
             }
         }
+        */
     } else {
         let fold = group
             .stream()
@@ -305,8 +334,9 @@ fn parse_var(
 
     if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
         panic!(
-            "akin: expected ';' on end of {}'s declaration",
-            name.replacen('*', "&", 1)
+            "akin: expected ';' on end of '&{}' declaration",
+            // VALIDITY: I'm only removing the first character, which is always '*', so it will never fail
+            unsafe { std::str::from_utf8_unchecked(&name.as_bytes()[1..]) }
         );
     }
 
@@ -376,7 +406,7 @@ fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
     } else {
         format!("{a} {tt}")
     };
-
+    
     *prev = tt;
     ret
 }
