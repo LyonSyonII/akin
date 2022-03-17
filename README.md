@@ -1,12 +1,15 @@
 # akin
-A zero-dependency crate for writing repetitive code easier and faster.  
+> A zero-dependency crate for writing repetitive code easier and faster.  
+
+[![Crates.io](https://img.shields.io/crates/v/akin)](https://crates.io/crates/akin)
+
 Check [Syntax](#syntax) for information about how to use it.  
 
-- [Why?](#why)
-- [Example](#example)
-- [Syntax](#syntax)
-- [NONE](#none)
-- [Joint modifier](#joint-modifier)
+1. [Why?](#why)
+2. [Example](#example)
+3. [Syntax](#syntax)
+4. [NONE](#none)
+5. [Joint modifier](#joint-modifier)
 
 ## Why?
 I've found myself having to write a lot of repetitive code (mostly when matching against enums in parsing).  
