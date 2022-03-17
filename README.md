@@ -216,7 +216,7 @@ fn _1()
 ```
 Inside string literals `"..."` it is not necessary to use the modifier, as Rust does not count them as identifiers.
 
-This is a limitation on proc_macro parsing, so I doubt it'll be fixed soon.
+This is a limitation on proc-macro parsing, so I doubt it'll be fixed soon.
 
 ## Zero dependencies? Really?
 Yes, this crate does not use `syn` nor `quote`, as parsing the syntax is pretty simple and both add a lot of overhead.  
