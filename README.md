@@ -10,6 +10,7 @@ Check [Syntax](#syntax) for information about how to use it.
 3. [Syntax](#syntax)
 4. [NONE](#none)
 5. [Joint modifier](#joint-modifier)
+6. [Zero dependencies? Really?](#zero-dependencies-really)
 
 ## Why?
 I've found myself having to write a lot of repetitive code (mostly when matching against enums in parsing).  
@@ -216,3 +217,7 @@ fn _1()
 Inside string literals `"..."` it is not necessary to use the modifier, as Rust does not count them as identifiers.
 
 This is a limitation on proc_macro parsing, so I doubt it'll be fixed soon.
+
+## Zero dependencies? Really?
+Yes, this crate does not use `syn` nor `quote`, as parsing the syntax is pretty simple and both add a lot of overhead.  
+For this reason, `akin` should not impact compile times as much as most proc-macros, try using it and see it by yourself!
