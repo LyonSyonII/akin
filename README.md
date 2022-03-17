@@ -1,7 +1,7 @@
 # akin
 > A zero-dependency crate for writing repetitive code easier and faster.  
 
-[![Crates.io](https://img.shields.io/crates/v/akin)](https://crates.io/crates/akin)
+[![Tests](https://github.com/LyonSyonII/akin/actions/workflows/rust.yml/badge.svg)](https://github.com/LyonSyonII/akin/actions/workflows/rust.yml)         [![Crates.io](https://img.shields.io/crates/v/akin)](https://crates.io/crates/akin)
 
 Check [Syntax](#syntax) for information about how to use it.  
 
