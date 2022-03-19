@@ -3,7 +3,7 @@
 
 [![Tests](https://github.com/LyonSyonII/akin/actions/workflows/rust.yml/badge.svg)](https://github.com/LyonSyonII/akin/actions/workflows/rust.yml)         [![Crates.io](https://img.shields.io/crates/v/akin)](https://crates.io/crates/akin)
 
-Check [Syntax](#syntax) for information about how to use it.  
+Check [Syntax](#syntax) for information on how to use it.  
 
 1. [Why?](#why)
 2. [Example](#example)
