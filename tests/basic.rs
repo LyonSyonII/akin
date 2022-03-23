@@ -162,3 +162,13 @@ fn readme_example() {
     assert_eq!(3i64.dumb_sqrt(), Ok(1.73));
     assert_eq!((-5i64).dumb_sqrt(), Err("Sqrt of negative number"));
 }
+
+#[test]
+fn variable_replace() {
+    akin! {
+        let &foo = [wrong];
+        let &foobar = [correct];
+
+        assert_eq!("*foobar", "correct");
+    }
+}

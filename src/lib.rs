@@ -1,4 +1,4 @@
-use std::{mem::take};
+use std::{mem::take, vec};
 
 use proc_macro::{Delimiter, Spacing, TokenTree};
 
@@ -245,6 +245,12 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         &mut previous,
     );
     let out_raw = tokens.fold(init, |acc, tt| fold_tt(acc, tt, &mut previous));
+    
+    // Reverse vars ordering to fix replace bug
+    vars.sort_unstable_by(|(a, _), (b, _)| {
+        a.cmp(b).reverse()
+    });
+
     let out = duplicate(&out_raw, &vars);
 
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
@@ -303,27 +309,6 @@ fn parse_var(
                 values.push(duplicate(&(take(&mut add) + &new), vars));
             }
         }
-        
-        /*
-        for var in group.stream() {
-            let new = match &var {
-                // Case {group} => Variable is code, braces need to be skipped
-                // Case punct   => Variable is punctuation, it will be grouped with the next variable. Workaround for characters like '-' or '!'
-                // Case _       => Variable is a value, it is printed normally.
-                TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
-                    .stream()
-                    .into_iter()
-                    .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev)),
-                _ => var.to_string(),
-            };
-
-            if new == "NONE" {
-                values.push(String::new())
-            } else if new != "," {
-                values.push(duplicate(&(take(&mut add) + &new), vars));
-            }
-        }
-        */
     } else {
         let fold = group
             .stream()

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 #[cfg(test)]
 use akin::akin;
 
