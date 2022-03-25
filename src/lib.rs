@@ -1,4 +1,4 @@
-use std::{mem::take, vec};
+use std::mem::take;
 
 use proc_macro::{Delimiter, Spacing, TokenTree};
 
@@ -227,13 +227,16 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Vec<(String, Vec<String>)> = Vec::with_capacity(2);
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
-    
+
     let mut first = tokens.next().expect("akin: expected code to duplicate");
     let mut second = tokens.next().expect("akin: expected code to duplicate");
     while matches!(&first, TokenTree::Ident(id) if id.to_string() == "let")
         && matches!(&second, TokenTree::Punct(p) if p.as_char() == '&')
     {
         vars.push(parse_var(&mut tokens, &vars));
+        // Reverse vars ordering to fix replace bug
+        vars.sort_unstable_by(|(a, _), (b, _)| a.cmp(b).reverse());
+
         first = tokens.next().expect("akin: expected code to duplicate");
         second = tokens.next().expect("akin: expected code to duplicate");
     }
@@ -245,11 +248,6 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         &mut previous,
     );
     let out_raw = tokens.fold(init, |acc, tt| fold_tt(acc, tt, &mut previous));
-    
-    // Reverse vars ordering to fix replace bug
-    vars.sort_unstable_by(|(a, _), (b, _)| {
-        a.cmp(b).reverse()
-    });
 
     let out = duplicate(&out_raw, &vars);
 
@@ -282,20 +280,20 @@ fn parse_var(
         let mut add = String::new();
 
         let mut stream = group.stream().into_iter();
-        
+
         while let Some(var) = stream.next() {
             let mut var = var;
             let mut new = String::new();
             while !matches!(&var, TokenTree::Punct(p) if p.as_char() == ',') {
                 new += &match &var {
                     TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
-                    .stream()
-                    .into_iter()
-                    .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev)),
+                        .stream()
+                        .into_iter()
+                        .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev)),
 
                     _ => var.to_string(),
                 };
-                
+
                 if let Some(v) = stream.next() {
                     var = v;
                 } else {
@@ -354,14 +352,14 @@ fn get_used_vars<'a>(
 ) -> (Vec<&'a (String, Vec<String>)>, usize) {
     let mut used = Vec::with_capacity(vars.len());
     let mut times = 0;
-
+    
     for var in vars {
         if stream.contains(&var.0) {
             used.push(var);
             times = times.max(var.1.len());
         }
     }
-
+    
     (used, times)
 }
 
@@ -384,14 +382,15 @@ fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
         format!("{a}{start}{group}{end}")
     } else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
         a // skip character
-    } else if matches!(&prev, TokenTree::Punct(p) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~')) {
+    } else if matches!(&prev, TokenTree::Punct(p) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'))
+    {
         // Case '*' => To make variable formatting simpler ('*var' instead of '* var')
         // Case '~' => Behaviour of the '~' modifier
         format!("{a}{tt}")
     } else {
         format!("{a} {tt}")
     };
-    
+
     *prev = tt;
     ret
 }

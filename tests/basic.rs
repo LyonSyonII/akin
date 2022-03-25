@@ -126,7 +126,7 @@ fn readme_example() {
     trait Sqrt {
         fn dumb_sqrt(self) -> Result<f64, &'static str>;
     }
-    
+
     akin! {
         let &int_type = [i64, u64];
         let &negative_check = [
@@ -137,17 +137,17 @@ fn readme_example() {
             },
             NONE
         ];
-        
+
         let &num = [1,     2,    3,  4];
         let &res = [1., 1.41, 1.73,  2.];
         let &branch = {
             *num => Ok(*res),
         };
-        
+
         impl Sqrt for *int_type {
             fn dumb_sqrt(self) -> Result<f64, &'static str> {
                 *negative_check
-                
+
                 match self {
                     *branch
                     _ => Err("Sqrt of num not in [1, 4]")
