@@ -164,11 +164,33 @@ fn readme_example() {
 }
 
 #[test]
-fn variable_replace() {
+fn var_replace_global() {
     akin! {
         let &foo = [wrong];
         let &foobar = [correct];
 
         assert_eq!("*foobar", "correct");
+    }
+}
+
+#[test]
+fn var_replace_value() {
+    akin! {
+        let &foo = [wrong];
+        let &foobar = [correct];
+        let &bar = [*foobar];
+
+        assert_eq!("*bar", "correct");
+    }
+}
+
+#[test]
+fn var_replace_code() {
+    akin! {
+        let &foo = [wrong];
+        let &foobar = ["correct"];
+        let &bar = { *foobar };
+
+        assert_eq!(*bar, "correct");
     }
 }

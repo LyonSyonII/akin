@@ -248,7 +248,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         &mut previous,
     );
     let out_raw = tokens.fold(init, |acc, tt| fold_tt(acc, tt, &mut previous));
-
+    
     let out = duplicate(&out_raw, &vars);
 
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
