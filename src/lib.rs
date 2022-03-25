@@ -352,12 +352,23 @@ fn get_used_vars<'a>(
 ) -> (Vec<&'a (String, Vec<String>)>, usize) {
     let mut used = Vec::with_capacity(vars.len());
     let mut times = 0;
-    
+    let mut indices = std::collections::HashSet::new();
     for var in vars {
+        let matches = stream.match_indices(&var.0);
+        for (m, _) in matches {
+            if !indices.contains(&m) {
+                indices.insert(m);
+                used.push(var);
+                times = times.max(var.1.len());
+                break;
+            }
+        }
+        /*
         if stream.contains(&var.0) {
             used.push(var);
             times = times.max(var.1.len());
         }
+        */
     }
     
     (used, times)
