@@ -19,6 +19,8 @@ fn list() {
         res.extend(*var);
     }
     assert_eq!(res, "abcde")
+    // more tests
+
 }
 
 #[test]
@@ -40,6 +42,7 @@ fn _match() {
     assert_eq!(test("b"), "b".to_owned());
     assert_eq!(test("c"), "c".to_owned());
     assert_eq!(test("d"), "d".to_owned());
+    assert_eq!(test("e"), String::new());
 }
 
 #[test]

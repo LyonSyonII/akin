@@ -3,11 +3,14 @@ use akin::akin;
 
 #[test]
 fn operations() {
+    let mut res = Vec::new();
     let (a, b) = (5, 6);
     akin! {
         let &op = [+, -, *, /];
-        println!("a *op b = {}", a *op b);
+        res.push(format!("a *op b = {}", a *op b));
     }
+
+    assert_eq!(res, ["a + b = 11", "a - b = -1", "a * b = 30", "a / b = 0"]);
 }
 
 #[test]
@@ -48,3 +51,5 @@ fn replace() {
         assert_ne!(f2.f64, 89.);
     }
 }
+
+// tests for the akin! macro
