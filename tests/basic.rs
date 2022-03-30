@@ -18,9 +18,7 @@ fn list() {
         let &var = [ ['a', 'b'], ['c', 'd'], ['e'] ];
         res.extend(*var);
     }
-    assert_eq!(res, "abcde")
-    // more tests
-
+    assert_eq!(res, "abcde");
 }
 
 #[test]
@@ -109,7 +107,7 @@ fn _trait() {
 }
 
 #[test]
-fn fn_raw() {
+fn fn_joint() {
     akin! {
         let &name = [1, 2, 3, 4, 5];
         fn _~*name() -> u32 {
