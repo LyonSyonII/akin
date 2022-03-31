@@ -224,7 +224,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// ```
 #[proc_macro]
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut vars: Set<(String, Vec<String>)> = Set::new();
+    let mut vars: Map<String, Vec<String>> = Map::new();
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
 
@@ -233,7 +233,8 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     while matches!(&first, TokenTree::Ident(id) if id.to_string() == "let")
         && matches!(&second, TokenTree::Punct(p) if p.as_char() == '&')
     {
-        vars.insert(parse_var(&mut tokens, &vars));
+        let var = parse_var(&mut tokens, &vars);
+        vars.insert(var.0, var.1);
 
         first = tokens.next().expect("akin: expected code to duplicate");
         second = tokens.next().expect("akin: expected code to duplicate");
@@ -258,7 +259,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 fn parse_var(
     tokens: &mut proc_macro::token_stream::IntoIter,
-    vars: &Set<(String, Vec<String>)>,
+    vars: &Map<String, Vec<String>>,
 ) -> (String, Vec<String>) {
     let name = format!(
         "*{}",
@@ -320,15 +321,15 @@ fn parse_var(
     (name, values)
 }
 
-fn duplicate(stream: &str, vars: &Set<(String, Vec<String>)>) -> String {
+fn duplicate(stream: &str, vars: &Map<String, Vec<String>>) -> String {
     let (vars, times) = get_used_vars(stream, vars);
     let mut out = String::with_capacity(stream.len() * times);
     for i in 0..times {
         out += stream;
-        for var in &vars {
+        for (name, values) in &vars {
             out = out.replace(
-                &var.0,
-                var.1.get(i).unwrap_or_else(|| var.1.last().unwrap()),
+                name.as_str(),
+                values.get(i).unwrap_or_else(|| values.last().unwrap()),
             )
         }
     }
@@ -342,18 +343,18 @@ fn duplicate(stream: &str, vars: &Set<(String, Vec<String>)>) -> String {
 
 fn get_used_vars<'a>(
     stream: &str,
-    vars: &'a Set<(String, Vec<String>)>,
-) -> (Vec<&'a (String, Vec<String>)>, usize) {
+    vars: &'a Map<String, Vec<String>>,
+) -> (Vec<(&'a String, &'a Vec<String>)>, usize) {
     let mut used = Vec::new();
     let mut times = 0;
     let mut indices = std::collections::HashSet::new();
-    for var in vars.iter().rev() {
-        let matches = stream.match_indices(&var.0);
+    for (name, values) in vars.iter().rev() {
+        let matches = stream.match_indices(name);
         for (m, _) in matches {
             if !indices.contains(&m) {
                 indices.insert(m);
-                used.push(var);
-                times = times.max(var.1.len());
+                used.push((name, values));
+                times = times.max(values.len());
                 break;
             }
         }
@@ -394,4 +395,4 @@ fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
     ret
 }
 
-type Set<T> = std::collections::BTreeSet<T>;
+type Map<T, S> = std::collections::BTreeMap<T, S>;
