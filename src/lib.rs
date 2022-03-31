@@ -1,4 +1,4 @@
-use std::mem::take;
+use std::{mem::take};
 
 use proc_macro::{Delimiter, Spacing, TokenTree};
 
@@ -224,7 +224,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// ```
 #[proc_macro]
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut vars: Vec<(String, Vec<String>)> = Vec::with_capacity(2);
+    let mut vars: Set<(String, Vec<String>)> = Set::new();
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
 
@@ -233,9 +233,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     while matches!(&first, TokenTree::Ident(id) if id.to_string() == "let")
         && matches!(&second, TokenTree::Punct(p) if p.as_char() == '&')
     {
-        vars.push(parse_var(&mut tokens, &vars));
-        // Reverse vars ordering to fix replace bug
-        vars.sort_unstable_by(|(a, _), (b, _)| a.cmp(b).reverse());
+        vars.insert(parse_var(&mut tokens, &vars));
 
         first = tokens.next().expect("akin: expected code to duplicate");
         second = tokens.next().expect("akin: expected code to duplicate");
@@ -260,7 +258,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 fn parse_var(
     tokens: &mut proc_macro::token_stream::IntoIter,
-    vars: &[(String, Vec<String>)],
+    vars: &Set<(String, Vec<String>)>,
 ) -> (String, Vec<String>) {
     let name = format!(
         "*{}",
@@ -326,7 +324,7 @@ fn parse_var(
     (name, values)
 }
 
-fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
+fn duplicate(stream: &str, vars: &Set<(String, Vec<String>)>) -> String {
     let (vars, times) = get_used_vars(stream, vars);
     let mut out = String::with_capacity(stream.len() * times);
     for i in 0..times {
@@ -348,12 +346,12 @@ fn duplicate(stream: &str, vars: &[(String, Vec<String>)]) -> String {
 
 fn get_used_vars<'a>(
     stream: &str,
-    vars: &'a [(String, Vec<String>)],
+    vars: &'a Set<(String, Vec<String>)>,
 ) -> (Vec<&'a (String, Vec<String>)>, usize) {
-    let mut used = Vec::with_capacity(vars.len());
+    let mut used = Vec::new();
     let mut times = 0;
     let mut indices = std::collections::HashSet::new();
-    for var in vars {
+    for var in vars.iter().rev() {
         let matches = stream.match_indices(&var.0);
         for (m, _) in matches {
             if !indices.contains(&m) {
@@ -363,12 +361,6 @@ fn get_used_vars<'a>(
                 break;
             }
         }
-        /*
-        if stream.contains(&var.0) {
-            used.push(var);
-            times = times.max(var.1.len());
-        }
-        */
     }
     
     (used, times)
@@ -405,3 +397,5 @@ fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
     *prev = tt;
     ret
 }
+
+type Set<T> = std::collections::BTreeSet<T>;
