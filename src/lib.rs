@@ -314,11 +314,7 @@ fn parse_var(
     }
 
     if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
-        panic!(
-            "akin: expected ';' on end of '&{}' declaration",
-            // VALIDITY: I'm only removing the first character, which is always '*', so it will never fail
-            unsafe { std::str::from_utf8_unchecked(&name.as_bytes()[1..]) }
-        );
+        panic!( "akin: expected ';' on end of '&{}' declaration", &name[1..]);
     }
 
     (name, values)
