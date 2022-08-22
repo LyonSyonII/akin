@@ -1,4 +1,4 @@
-use std::{mem::take};
+use std::{mem::take, fmt::Write};
 
 use proc_macro::{Delimiter, Spacing, TokenTree};
 
@@ -228,25 +228,27 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     //panic!("Tokens: {input:#?}");
     let mut tokens = input.into_iter();
 
-    let mut first = tokens.next().expect("akin: expected code to duplicate");
-    let mut second = tokens.next().expect("akin: expected code to duplicate");
-    while matches!(&first, TokenTree::Ident(id) if id.to_string() == "let")
-        && matches!(&second, TokenTree::Punct(p) if p.as_char() == '&')
-    {
+    let mut first;
+    let mut second;
+
+    loop {
+        first = tokens.next();
+        second = first.as_ref().and_then(|_| tokens.next());
+        if !matches!(&first, Some(TokenTree::Ident(id)) if id.to_string() == "let") {
+            break;
+        }
+        if !matches!(&second, Some(TokenTree::Punct(p)) if p.as_char() == '&') {
+            break;
+        }
         let var = parse_var(&mut tokens, &vars);
         vars.insert(var.0, var.1);
-
-        first = tokens.next().expect("akin: expected code to duplicate");
-        second = tokens.next().expect("akin: expected code to duplicate");
     }
 
-    let mut previous = first.clone();
-    let init = fold_tt(
-        fold_tt(String::new(), first, &mut previous),
-        second,
-        &mut previous,
-    );
-    let out_raw = tokens.fold(init, |acc, tt| fold_tt(acc, tt, &mut previous));
+    let mut prev = None;
+    let mut out_raw = String::new();
+    for tt in first.into_iter().chain(second.into_iter()).chain(tokens) {
+        fold_tt(&mut out_raw, tt, &mut prev);
+    }
 
     let out = duplicate(&out_raw, &vars);
 
@@ -266,7 +268,10 @@ fn parse_var(
         tokens.next().expect("akin: expected code to duplicate")
     );
 
-    let mut prev = tokens.next().expect("akin: expected code to duplicate"); // skip '='
+    if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == '=') {
+        panic!( "akin: expected '=' after variable name '&{}'", &name[1..]);
+    }
+
     let mut values: Vec<String> = Vec::new();
     let group =
         if let TokenTree::Group(g) = tokens.next().expect("akin: expected code to duplicate") {
@@ -275,22 +280,23 @@ fn parse_var(
             return (name, values);
         };
 
+    let mut prev = None;
+
     if group.delimiter() == Delimiter::Bracket {
         let mut add = String::new();
 
         let mut stream = group.stream().into_iter();
 
-        while let Some(var) = stream.next() {
-            let mut var = var;
+        while let Some(mut var) = stream.next() {
             let mut new = String::new();
             while !matches!(&var, TokenTree::Punct(p) if p.as_char() == ',') {
-                new += &match &var {
-                    TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => g
-                        .stream()
-                        .into_iter()
-                        .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev)),
-
-                    _ => var.to_string(),
+                match &var {
+                    TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => {
+                        for tt in g.stream() {
+                            fold_tt(&mut new, tt, &mut prev)
+                        }
+                    },
+                    _ => write!(&mut new, "{var}").unwrap(),
                 };
 
                 if let Some(v) = stream.next() {
@@ -307,10 +313,10 @@ fn parse_var(
             }
         }
     } else {
-        let fold = group
-            .stream()
-            .into_iter()
-            .fold(String::new(), |acc, tt| fold_tt(acc, tt, &mut prev));
+        let mut fold = String::new();
+        for tt in group.stream() {
+            fold_tt(&mut fold, tt, &mut prev)
+        }
         values.push(duplicate(&fold, vars));
     }
 
@@ -372,27 +378,30 @@ fn get_delimiters(delimiter: Delimiter) -> (char, char) {
     }
 }
 
-fn fold_tt(a: String, tt: TokenTree, prev: &mut TokenTree) -> String {
-    let ret = if let TokenTree::Group(g) = &tt {
-        let (start, end) = get_delimiters(g.delimiter());
-        let group = g
-            .stream()
-            .into_iter()
-            .fold(String::new(), |acc, tt| fold_tt(acc, tt, prev));
-        format!("{a}{start}{group}{end}")
-    } else if matches!(&tt, TokenTree::Punct(p) if p.as_char() == '~') {
-        a // skip character
-    } else if matches!(&prev, TokenTree::Punct(p) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~'))
-    {
-        // Case '*' => To make variable formatting simpler ('*var' instead of '* var')
-        // Case '~' => Behaviour of the '~' modifier
-        format!("{a}{tt}")
-    } else {
-        format!("{a} {tt}")
+fn fold_tt(a: &mut String, tt: TokenTree, prev: &mut Option<TokenTree>) {
+    match &tt {
+        TokenTree::Group(g) => {
+            let (start, end) = get_delimiters(g.delimiter());
+            a.push(start);
+            for tt in g.stream() {
+                fold_tt(a, tt, prev);
+            }
+            a.push(end);
+        }
+        TokenTree::Punct(p) if p.as_char() == '~' => {
+            // skip character
+        }
+        _ if matches!(&prev, Some(TokenTree::Punct(p)) if p.spacing() == Spacing::Joint || matches!(p.as_char(), '*' | '~')) => {
+            // Case '*' => To make variable formatting simpler ('*var' instead of '* var')
+            // Case '~' => Behaviour of the '~' modifier
+            write!(a, "{tt}").unwrap();
+        }
+        _ => {
+            write!(a, " {tt}").unwrap();
+        }
     };
 
-    *prev = tt;
-    ret
+    *prev = Some(tt);
 }
 
 type Map<T, S> = std::collections::BTreeMap<T, S>;

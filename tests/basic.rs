@@ -195,3 +195,26 @@ fn var_replace_code() {
         assert_eq!(*bar, "correct");
     }
 }
+
+#[test]
+fn zero_tokens() {
+    akin! {}
+}
+
+#[test]
+fn one_token() {
+    let x = akin! {
+        "test"
+    };
+    assert_eq!(x, "test");
+}
+
+#[test]
+fn one_token_repeated() {
+    let x = akin::akin! {
+        let &x = [1, 2];
+        let &b = {test~*x};
+        "*b"
+    };
+    assert_eq!(x, " test1 test2");
+}
