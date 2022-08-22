@@ -280,8 +280,6 @@ fn parse_var(
             return (name, values);
         };
 
-    let mut prev = None;
-
     if group.delimiter() == Delimiter::Bracket {
         let mut stream = group.stream().into_iter();
 
@@ -290,6 +288,7 @@ fn parse_var(
             while !matches!(&var, TokenTree::Punct(p) if p.as_char() == ',') {
                 match &var {
                     TokenTree::Group(g) if g.delimiter() == Delimiter::Brace => {
+                        let mut prev = None;
                         for tt in g.stream() {
                             fold_tt(&mut new, tt, &mut prev)
                         }
@@ -312,6 +311,7 @@ fn parse_var(
         }
     } else {
         let mut fold = String::new();
+        let mut prev = None;
         for tt in group.stream() {
             fold_tt(&mut fold, tt, &mut prev)
         }

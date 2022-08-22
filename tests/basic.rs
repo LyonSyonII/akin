@@ -218,3 +218,11 @@ fn one_token_repeated() {
     };
     assert_eq!(x, " test1 test2");
 }
+
+#[test]
+fn modifier_carry_over_bug() {
+    akin::akin! {
+        let &x = [{1~} 2 {3}];
+        assert_eq!("*x", " 12 3");
+    };
+}
