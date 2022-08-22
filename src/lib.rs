@@ -46,7 +46,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 ///             println!("false");
 ///         }
 ///     ];
-///     
+///
 ///     if *var < 0 {
 ///         *code
 ///     }
@@ -90,7 +90,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// ```
 ///
 /// ## NONE
-/// `NONE` is the way you can tell `akin` to simply skip that value and not write anything.  
+/// `NONE` is the way you can tell `akin` to simply skip that value and not write anything.
 /// It is useful for when you want to have elements in a duplication that do not have to be in the others.
 /// ```
 /// # use akin::akin;
@@ -105,7 +105,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 ///         }
 ///     ];
 ///
-///     println!("*num^2 = {}", *num~u32*code);  
+///     println!("*num^2 = {}", *num~u32*code);
 ///     // *num~u32 is necessary to ensure the type is written correctly (it would be "1 u32" without it)
 ///     # writeln!(&mut out, "*num^2 = *numu32*code");
 /// }
@@ -113,7 +113,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// ```
 ///
 /// ## Joint modifier
-/// By default, `akin` places a space between all identifiers.  
+/// By default, `akin` places a space between all identifiers.
 /// Sometimes, this is not desirable, for example, if trying to interpolate between a function name
 /// ```compile_fail
 /// # use akin::akin;
@@ -130,7 +130,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// To avoid it, use the joint modifier `~`, making the next identifier not to be separated.
 /// ```
 /// # use akin::akin;
-/// akin! {  
+/// akin! {
 ///     let &name = [1];
 ///     fn _~*name() // *name is affected by the modifier
 /// # {}
@@ -163,7 +163,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 ///         },
 ///         NONE
 ///     ];
-///     
+///
 ///     let &num = [1,     2,    3,  4];
 ///     let &res = [1., 1.41, 1.73,  2.];
 ///     let &branch = {
@@ -173,7 +173,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 ///     impl Sqrt for *int_type {
 ///         fn dumb_sqrt(self) -> Result<f64, &'static str> {
 ///             *negative_check
-///             
+///
 ///             match self {
 ///                 *branch
 ///                 _ => Err("Sqrt of num not in [1, 4]")
@@ -199,7 +199,7 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 ///         if self < 0 {
 ///             return Err("Sqrt of negative number")
 ///         }
-///         
+///
 ///         match self {
 ///             1 => Ok(1.),
 ///             2 => Ok(1.41),
@@ -247,7 +247,7 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         &mut previous,
     );
     let out_raw = tokens.fold(init, |acc, tt| fold_tt(acc, tt, &mut previous));
-    
+
     let out = duplicate(&out_raw, &vars);
 
     //let tokens = format!("proc_macro: {:#?}", input.into_iter().collect::<Vec<_>>());
@@ -359,7 +359,7 @@ fn get_used_vars<'a>(
             }
         }
     }
-    
+
     (used, times)
 }
 
