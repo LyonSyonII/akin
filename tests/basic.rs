@@ -197,6 +197,42 @@ fn var_replace_code() {
 }
 
 #[test]
+fn var_replace_global_bug() {
+    let mut v = Vec::new();
+    akin! {
+        let &foo = [1, 2, 3];
+        let &foobar = [correct];
+        v.push("*foobar *foobar");
+    };
+    assert_eq!(v.as_slice(), &["correct correct"]);
+}
+
+#[test]
+fn var_replace_value_bug() {
+    let mut v = Vec::new();
+    akin! {
+        let &foo = [1, 2, 3];
+        let &foobar = [correct];
+        let &bar = [*foobar *foobar];
+        v.push("*bar");
+    }
+    assert_eq!(v.as_slice(), &["correctcorrect"]);
+}
+
+#[test]
+fn var_replace_code_bug() {
+    let mut v = Vec::new();
+    akin! {
+        let &foo = [1, 2, 3];
+        let &foobar = ["correct"];
+        let &bar = { v.push(*foobar); v.push(*foobar); };
+
+        *bar
+    }
+    assert_eq!(v.as_slice(), &["correct", "correct"]);
+}
+
+#[test]
 fn zero_tokens() {
     akin! {}
 }

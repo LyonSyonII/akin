@@ -353,14 +353,13 @@ fn get_used_vars<'a>(
     let mut times = 0;
     let mut indices = std::collections::HashSet::new();
     for (name, values) in vars.iter().rev() {
-        let matches = stream.match_indices(name);
-        for (m, _) in matches {
-            if !indices.contains(&m) {
-                indices.insert(m);
-                used.push((name, values));
-                times = times.max(values.len());
-                break;
-            }
+        let present = stream.match_indices(name).fold(false, |acc, (m, _)| {
+            indices.insert(m) || acc
+        });
+
+        if present {
+            used.push((name, values));
+            times = times.max(values.len());
         }
     }
 
