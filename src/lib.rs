@@ -1,4 +1,4 @@
-use std::{mem::take, fmt::Write};
+use std::fmt::Write;
 
 use proc_macro::{Delimiter, Spacing, TokenTree};
 
@@ -283,8 +283,6 @@ fn parse_var(
     let mut prev = None;
 
     if group.delimiter() == Delimiter::Bracket {
-        let mut add = String::new();
-
         let mut stream = group.stream().into_iter();
 
         while let Some(mut var) = stream.next() {
@@ -309,7 +307,7 @@ fn parse_var(
             if new == "NONE" {
                 values.push(String::new())
             } else {
-                values.push(duplicate(&(take(&mut add) + &new), vars));
+                values.push(duplicate(&new, vars));
             }
         }
     } else {
