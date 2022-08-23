@@ -262,3 +262,13 @@ fn modifier_carry_over_bug() {
         assert_eq!("*x", " 12 3");
     };
 }
+
+#[test]
+fn repeated_substitution_bug() {
+    let x = akin::akin! {
+        let &y = [x];
+        let &z = [y];
+        "*y**z"
+    };
+    assert_eq!(x, "x*y");
+}

@@ -326,44 +326,99 @@ fn parse_var(
 }
 
 fn duplicate(stream: &str, vars: &Map<String, Vec<String>>) -> String {
-    let (vars, times) = get_used_vars(stream, vars);
-    let mut out = String::with_capacity(stream.len() * times);
+    let chunks = Chunk::new(stream).split_by_vars(vars);
+
+    let times = chunks.iter().map(|c| c.times()).max().unwrap_or(0);
+
+    if times <= 0 {
+        return stream.into();
+    }
+
+    let total_len = chunks.iter().map(|c| c.total_len(times)).sum();
+
+    let mut out = String::with_capacity(total_len);
+
     for i in 0..times {
-        out += stream;
-        for (name, values) in &vars {
-            out = out.replace(
-                name.as_str(),
-                values.get(i).unwrap_or_else(|| values.last().unwrap()),
-            )
+        for chunk in &chunks {
+            chunk.push_to_string(i, &mut out);
         }
     }
 
-    if out.is_empty() {
-        stream.into()
-    } else {
-        out
-    }
+    out
 }
 
-fn get_used_vars<'a>(
-    stream: &str,
-    vars: &'a Map<String, Vec<String>>,
-) -> (Vec<(&'a String, &'a Vec<String>)>, usize) {
-    let mut used = Vec::new();
-    let mut times = 0;
-    let mut indices = std::collections::HashSet::new();
-    for (name, values) in vars.iter().rev() {
-        let present = stream.match_indices(name).fold(false, |acc, (m, _)| {
-            indices.insert(m) || acc
-        });
+/// Represents a substitution chunk. A fixed piece of text followed by 0 or more text variants.
+struct Chunk<'c> {
+    prefix: &'c str,
+    suffix_variants: &'c [String],
+}
 
-        if present {
-            used.push((name, values));
-            times = times.max(values.len());
+impl<'c> Chunk<'c> {
+    /// Creates a chunk from a fixed piece of text.
+    fn new(prefix: &'c str) -> Self {
+        Chunk { prefix, suffix_variants: &[] }
+    }
+
+    fn push_to_string(&self, i: usize, out: &mut String) {
+        let Chunk { prefix, suffix_variants } = *self;
+        out.push_str(prefix);
+        if let Some(suffix) = suffix_variants.get(i).or_else(|| suffix_variants.last()) {
+            out.push_str(suffix);
         }
     }
 
-    (used, times)
+    fn times(&self) -> usize {
+        self.suffix_variants.len()
+    }
+
+    // Calculates the length of a string, that could hold `times` repetitions of this chunk.
+    fn total_len(&self, times: usize) -> usize {
+        let Chunk { prefix, suffix_variants } = *self;
+        let mut total_len = prefix.len() * times;
+        if let Some(last) = suffix_variants.last() {
+            total_len += suffix_variants.iter().map(|s| s.len()).sum::<usize>();
+            total_len += last.len() * times.saturating_sub(suffix_variants.len());
+        }
+        total_len
+    }
+
+    fn split_by_var<'s: 'c>(
+        &self,
+        var_name: &'s str,
+        var_values: &'s [String],
+    ) -> impl Iterator<Item = Chunk<'c>> {
+        let Chunk { prefix, suffix_variants } = *self;
+
+        let mut text_start = 0usize;
+        let chopped = prefix.match_indices(var_name).map(move |(idx, v)| (idx, v.len(), var_values));
+        let chopped = chopped.chain(std::iter::once((prefix.len(), 0, suffix_variants)));
+        let chopped = chopped.map(move |(var_start, var_len, values)| {
+            let new_prefix = &prefix[text_start..var_start];
+            text_start = var_start + var_len;
+            Chunk { prefix: new_prefix, suffix_variants: values }
+        });
+        chopped
+    }
+
+    fn split_by_vars<'s: 'c>(
+        self,
+        vars: &'s Map<String, Vec<String>>,
+    ) -> Vec<Chunk<'c>> {
+        let mut chunks = Vec::with_capacity(16);
+        chunks.push(self);
+
+        // Iterate over vars in reverse lexicographical order,
+        // so that "*foobar" has a chance to get substituted before "*foo".
+        for (name, values) in vars.iter().rev() {
+            // Iterate over chunks in reverse order, so that newly inserted chunks
+            // don't get processed more than once for the same variable.
+            for i in (0..chunks.len()).rev() {
+                chunks.splice(i..=i, chunks[i].split_by_var(name, values));
+            }
+        }
+
+        chunks
+    }
 }
 
 fn get_delimiters(delimiter: Delimiter) -> (char, char) {
