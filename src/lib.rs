@@ -265,7 +265,7 @@ fn parse_var(
 ) -> (String, Vec<String>) {
     let name = format!(
         "*{}",
-        tokens.next().expect("akin: expected code to duplicate")
+        tokens.next().expect("akin: expected variable name after 'let &'")
     );
 
     if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == '=') {
@@ -273,12 +273,10 @@ fn parse_var(
     }
 
     let mut values: Vec<String> = Vec::new();
-    let group =
-        if let TokenTree::Group(g) = tokens.next().expect("akin: expected code to duplicate") {
-            g
-        } else {
-            return (name, values);
-        };
+    let group = match tokens.next() {
+        Some(TokenTree::Group(g)) => g,
+        _ => panic!("akin: expected bracketed or braced group after '&{}='", &name[1..]),
+    };
 
     if group.delimiter() == Delimiter::Bracket {
         let mut stream = group.stream().into_iter();
