@@ -226,27 +226,15 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Map<String, Vec<String>> = Map::new();
     //panic!("Tokens: {input:#?}");
-    let mut tokens = input.into_iter();
+    let mut tokens: Lookahead = input.into_iter().into();
 
-    let mut first;
-    let mut second;
-
-    loop {
-        first = tokens.next();
-        second = first.as_ref().and_then(|_| tokens.next());
-        if !matches!(&first, Some(TokenTree::Ident(id)) if id.to_string() == "let") {
-            break;
-        }
-        if !matches!(&second, Some(TokenTree::Punct(p)) if p.as_char() == '&') {
-            break;
-        }
-        let var = parse_var(&mut tokens, &vars);
-        vars.insert(var.0, var.1);
+    while let Some((name, values)) = parse_var(&mut tokens, &vars) {
+        vars.insert(name, values);
     }
 
     let mut prev = None;
     let mut out_raw = String::new();
-    for tt in first.into_iter().chain(second.into_iter()).chain(tokens) {
+    for tt in tokens {
         fold_tt(&mut out_raw, tt, &mut prev);
     }
 
@@ -259,10 +247,72 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     out.parse().unwrap()
 }
 
+struct Lookahead {
+    queue: [Option<TokenTree>; 2],
+    iter: proc_macro::token_stream::IntoIter,
+}
+
+impl Lookahead {
+    fn queue_pop(&mut self) -> Option<TokenTree> {
+        if let Some(tt) = self.queue[0].take() {
+            self.queue[0] = self.queue[1].take();
+            return Some(tt);
+        }
+        None
+    }
+
+    fn queue_push(&mut self, elem: TokenTree) {
+        if self.queue[0].is_none() {
+            self.queue[0] = Some(elem)
+        } else if self.queue[1].is_none() {
+            self.queue[1] = Some(elem)
+        } else {
+            panic!("akin: internal bug, lookahead buffer size exceeded")
+        }
+    }
+
+    fn peek_nth(&mut self, i: usize) -> Option<&TokenTree> {
+        assert!(i < self.queue.len(), "akin: internal bug, lookahead buffer index too big: {}", i);
+        while self.queue[i].is_none() {
+            if let Some(elem) = self.iter.next() {
+                self.queue_push(elem);
+            } else {
+                return None;
+            }
+        }
+        self.queue[i].as_ref()
+    }
+}
+
+impl Iterator for Lookahead {
+    type Item = <proc_macro::token_stream::IntoIter as Iterator>::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.queue_pop().or_else(|| self.iter.next())
+    }
+}
+
+impl From<proc_macro::token_stream::IntoIter> for Lookahead {
+    fn from(iter: proc_macro::token_stream::IntoIter) -> Self {
+        Lookahead { queue: Default::default(), iter }
+    }
+}
+
 fn parse_var(
-    tokens: &mut proc_macro::token_stream::IntoIter,
+    tokens: &mut Lookahead,
     vars: &Map<String, Vec<String>>,
-) -> (String, Vec<String>) {
+) -> Option<(String, Vec<String>)> {
+    if !matches!(tokens.peek_nth(0), Some(TokenTree::Ident(id)) if id.to_string() == "let") {
+        return None;
+    }
+
+    if !matches!(tokens.peek_nth(1), Some(TokenTree::Punct(p)) if p.as_char() == '&') {
+        return None;
+    }
+
+    tokens.next();
+    tokens.next();
+
     let name = format!(
         "*{}",
         tokens.next().expect("akin: expected variable name after 'let &'")
@@ -320,7 +370,7 @@ fn parse_var(
         panic!( "akin: expected ';' on end of '&{}' declaration", &name[1..]);
     }
 
-    (name, values)
+    Some((name, values))
 }
 
 fn duplicate(stream: &str, vars: &Map<String, Vec<String>>) -> String {
