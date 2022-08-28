@@ -326,11 +326,7 @@ fn parse_var(
 fn duplicate(stream: &str, vars: &Map<String, Vec<String>>) -> String {
     let chunks = Chunk::new(stream).split_by_vars(vars);
 
-    let times = chunks.iter().map(|c| c.times()).max().unwrap_or(0);
-
-    if times <= 0 {
-        return stream.into();
-    }
+    let times = chunks.iter().map(|c| c.times()).max().unwrap_or(1).max(1);
 
     let total_len = chunks.iter().map(|c| c.total_len(times)).sum();
 

@@ -272,3 +272,12 @@ fn repeated_substitution_bug() {
     };
     assert_eq!(x, "x*y");
 }
+
+#[test]
+fn replace_no_variants_bug() {
+    akin! {
+        let &x = [];
+        assert_eq!("*x", "");
+        assert_eq!("*y", "*y");
+    };
+}
