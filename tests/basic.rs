@@ -281,3 +281,23 @@ fn replace_no_variants_bug() {
         assert_eq!("*y", "*y");
     };
 }
+
+#[test]
+fn range_expression() {
+    let x = akin::akin! {
+        let &x = 1..10;
+        let &y = {*x};
+        "*y"
+    };
+    assert_eq!(x, " 1 2 3 4 5 6 7 8 9");
+}
+
+#[test]
+fn range_expression_inclusive() {
+    let x = akin::akin! {
+        let &x = 1..=10;
+        let &y = {*x,};
+        [*y]
+    };
+    assert_eq!(x, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+}

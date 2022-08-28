@@ -322,11 +322,17 @@ fn parse_var(
         panic!( "akin: expected '=' after variable name '&{}'", &name[1..]);
     }
 
-    let mut values: Vec<String> = Vec::new();
     let group = match tokens.next() {
         Some(TokenTree::Group(g)) => g,
-        _ => panic!("akin: expected bracketed or braced group after '&{}='", &name[1..]),
+        Some(l @ TokenTree::Literal(_)) => {
+            tokens.queue_push(l);
+            let values = parse_range_expr(&name[1..], tokens);
+            return Some((name, values));
+        },
+        tt => panic!("akin: expected bracketed/braced group or range expression after '&{}=', got {:?}", &name[1..], tt),
     };
+
+    let mut values: Vec<String> = Vec::new();
 
     if group.delimiter() == Delimiter::Bracket {
         let mut stream = group.stream().into_iter();
@@ -371,6 +377,67 @@ fn parse_var(
     }
 
     Some((name, values))
+}
+
+fn parse_integer_literal(tokens: &mut Lookahead) -> Result<u64, &'static str> {
+    match tokens.peek_nth(0) {
+        Some(TokenTree::Literal(l)) => {
+            l.to_string().parse().map(|i| {
+                tokens.next();
+                i
+            }).map_err(|_| {
+                "non-integer literal"
+            })
+        },
+        Some(_) => Err("non-literal token"),
+        None => Err("unexpected end of input"),
+    }
+}
+
+fn parse_range_expr(
+    var_name: &str,
+    tokens: &mut Lookahead,
+) -> Vec<String> {
+    let range_start = match parse_integer_literal(tokens) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!(
+                "akin: integer literal expected after 'let &{}='{}",
+                var_name, tokens.peek_nth(0).map(|tt| format!(", got {} '{}'", e, tt)).unwrap_or_default()
+            );
+        }
+    };
+
+    let inclusive = match (tokens.next(), tokens.next(), tokens.peek_nth(0)) {
+        (Some(TokenTree::Punct(p1)), Some(TokenTree::Punct(p2)), p3) if p1.spacing() == Spacing::Joint && (p1.as_char(), p2.as_char()) == ('.', '.') => {
+            p2.spacing() == Spacing::Joint && matches!(p3, Some(TokenTree::Punct(p3)) if p3.as_char() == '=')
+        },
+        _ => {
+            panic!( "akin: expected '..' or '..=' after 'let &{}={}'", var_name, range_start);
+        },
+    };
+
+    if inclusive {
+        tokens.next(); // drop the '=' in '..='
+    }
+
+    let range_end = match parse_integer_literal(tokens) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!(
+                "akin: integer literal expected after 'let &{}={}..'{}",
+                var_name, range_start, tokens.peek_nth(0).map(|tt| format!(", got {} '{}'", e, tt)).unwrap_or_default()
+            );
+        }
+    };
+
+    if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
+        panic!( "akin: expected ';' on end of '&{}' declaration", var_name);
+    }
+
+    let last = Some(range_end).filter(|_| inclusive);
+    let iter = (range_start..range_end).chain(last).map(|i| i.to_string());
+    iter.collect()
 }
 
 fn duplicate(stream: &str, vars: &Map<String, Vec<String>>) -> String {
