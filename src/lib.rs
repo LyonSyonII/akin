@@ -89,6 +89,19 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// }
 /// ```
 ///
+/// ## Range syntax
+/// As a matter of convenience, the range syntax is also accepted, when declaring a variable,
+/// e.g. `0..3` and `0..=3`, which are equivalent to `[0,1,2]` and `[0,1,2,3]` respectively.
+/// So the variables `a` and `b` in the example above could also be declared like
+///
+/// ```ignore
+/// let &a = 1..=6;
+/// let &b = 4..=6;
+/// ```
+///
+/// Presently, only unsigned integers that can fit in `u64` are supported in ranges, i.e. ranges
+/// like `-10..-1` or `'a'..'c'`, which are fine in regular Rust, aren't accepted by `akin`.
+///
 /// ## NONE
 /// `NONE` is the way you can tell `akin` to simply skip that value and not write anything.
 /// It is useful for when you want to have elements in a duplication that do not have to be in the others.
