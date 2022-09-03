@@ -195,3 +195,89 @@ fn var_replace_code() {
         assert_eq!(*bar, "correct");
     }
 }
+
+#[test]
+fn var_replace_global_bug() {
+    let mut v = Vec::new();
+    akin! {
+        let &foo = [1, 2, 3];
+        let &foobar = [correct];
+        v.push("*foobar *foobar");
+    };
+    assert_eq!(v.as_slice(), &["correct correct"]);
+}
+
+#[test]
+fn var_replace_value_bug() {
+    let mut v = Vec::new();
+    akin! {
+        let &foo = [1, 2, 3];
+        let &foobar = [correct];
+        let &bar = [*foobar *foobar];
+        v.push("*bar");
+    }
+    assert_eq!(v.as_slice(), &["correctcorrect"]);
+}
+
+#[test]
+fn var_replace_code_bug() {
+    let mut v = Vec::new();
+    akin! {
+        let &foo = [1, 2, 3];
+        let &foobar = ["correct"];
+        let &bar = { v.push(*foobar); v.push(*foobar); };
+
+        *bar
+    }
+    assert_eq!(v.as_slice(), &["correct", "correct"]);
+}
+
+#[test]
+fn zero_tokens() {
+    akin! {}
+}
+
+#[test]
+fn one_token() {
+    let x = akin! {
+        "test"
+    };
+    assert_eq!(x, "test");
+}
+
+#[test]
+fn one_token_repeated() {
+    let x = akin::akin! {
+        let &x = [1, 2];
+        let &b = {test~*x};
+        "*b"
+    };
+    assert_eq!(x, " test1 test2");
+}
+
+#[test]
+fn modifier_carry_over_bug() {
+    akin::akin! {
+        let &x = [{1~} 2 {3}];
+        assert_eq!("*x", " 12 3");
+    };
+}
+
+#[test]
+fn repeated_substitution_bug() {
+    let x = akin::akin! {
+        let &y = [x];
+        let &z = [y];
+        "*y**z"
+    };
+    assert_eq!(x, "x*y");
+}
+
+#[test]
+fn replace_no_variants_bug() {
+    akin! {
+        let &x = [];
+        assert_eq!("*x", "");
+        assert_eq!("*y", "*y");
+    };
+}
