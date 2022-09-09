@@ -89,6 +89,19 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 /// }
 /// ```
 ///
+/// ## Range syntax
+/// As a matter of convenience, the range syntax is also accepted, when declaring a variable,
+/// e.g. `0..3` and `0..=3`, which are equivalent to `[0,1,2]` and `[0,1,2,3]` respectively.
+/// So the variables `a` and `b` in the example above could also be declared like
+///
+/// ```ignore
+/// let &a = 1..=6;
+/// let &b = 4..=6;
+/// ```
+///
+/// Presently, only unsigned integers that can fit in `u64` are supported in ranges, i.e. ranges
+/// like `-10..-1` or `'a'..'c'`, which are fine in regular Rust, aren't accepted by `akin`.
+///
 /// ## NONE
 /// `NONE` is the way you can tell `akin` to simply skip that value and not write anything.
 /// It is useful for when you want to have elements in a duplication that do not have to be in the others.
@@ -226,27 +239,15 @@ use proc_macro::{Delimiter, Spacing, TokenTree};
 pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut vars: Map<String, Vec<String>> = Map::new();
     //panic!("Tokens: {input:#?}");
-    let mut tokens = input.into_iter();
+    let mut tokens: Lookahead = input.into_iter().into();
 
-    let mut first;
-    let mut second;
-
-    loop {
-        first = tokens.next();
-        second = first.as_ref().and_then(|_| tokens.next());
-        if !matches!(&first, Some(TokenTree::Ident(id)) if id.to_string() == "let") {
-            break;
-        }
-        if !matches!(&second, Some(TokenTree::Punct(p)) if p.as_char() == '&') {
-            break;
-        }
-        let var = parse_var(&mut tokens, &vars);
-        vars.insert(var.0, var.1);
+    while let Some((name, values)) = parse_var(&mut tokens, &vars) {
+        vars.insert(name, values);
     }
 
     let mut prev = None;
     let mut out_raw = String::new();
-    for tt in first.into_iter().chain(second.into_iter()).chain(tokens) {
+    for tt in tokens {
         fold_tt(&mut out_raw, tt, &mut prev);
     }
 
@@ -259,10 +260,72 @@ pub fn akin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     out.parse().unwrap()
 }
 
+struct Lookahead {
+    queue: [Option<TokenTree>; 2],
+    iter: proc_macro::token_stream::IntoIter,
+}
+
+impl Lookahead {
+    fn queue_pop(&mut self) -> Option<TokenTree> {
+        if let Some(tt) = self.queue[0].take() {
+            self.queue[0] = self.queue[1].take();
+            return Some(tt);
+        }
+        None
+    }
+
+    fn queue_push(&mut self, elem: TokenTree) {
+        if self.queue[0].is_none() {
+            self.queue[0] = Some(elem)
+        } else if self.queue[1].is_none() {
+            self.queue[1] = Some(elem)
+        } else {
+            panic!("akin: internal bug, lookahead buffer size exceeded")
+        }
+    }
+
+    fn peek_nth(&mut self, i: usize) -> Option<&TokenTree> {
+        assert!(i < self.queue.len(), "akin: internal bug, lookahead buffer index too big: {}", i);
+        while self.queue[i].is_none() {
+            if let Some(elem) = self.iter.next() {
+                self.queue_push(elem);
+            } else {
+                return None;
+            }
+        }
+        self.queue[i].as_ref()
+    }
+}
+
+impl Iterator for Lookahead {
+    type Item = <proc_macro::token_stream::IntoIter as Iterator>::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.queue_pop().or_else(|| self.iter.next())
+    }
+}
+
+impl From<proc_macro::token_stream::IntoIter> for Lookahead {
+    fn from(iter: proc_macro::token_stream::IntoIter) -> Self {
+        Lookahead { queue: Default::default(), iter }
+    }
+}
+
 fn parse_var(
-    tokens: &mut proc_macro::token_stream::IntoIter,
+    tokens: &mut Lookahead,
     vars: &Map<String, Vec<String>>,
-) -> (String, Vec<String>) {
+) -> Option<(String, Vec<String>)> {
+    if !matches!(tokens.peek_nth(0), Some(TokenTree::Ident(id)) if id.to_string() == "let") {
+        return None;
+    }
+
+    if !matches!(tokens.peek_nth(1), Some(TokenTree::Punct(p)) if p.as_char() == '&') {
+        return None;
+    }
+
+    tokens.next();
+    tokens.next();
+
     let name = format!(
         "*{}",
         tokens.next().expect("akin: expected variable name after 'let &'")
@@ -272,11 +335,17 @@ fn parse_var(
         panic!( "akin: expected '=' after variable name '&{}'", &name[1..]);
     }
 
-    let mut values: Vec<String> = Vec::new();
     let group = match tokens.next() {
         Some(TokenTree::Group(g)) => g,
-        _ => panic!("akin: expected bracketed or braced group after '&{}='", &name[1..]),
+        Some(l @ TokenTree::Literal(_)) => {
+            tokens.queue_push(l);
+            let values = parse_range_expr(&name[1..], tokens);
+            return Some((name, values));
+        },
+        tt => panic!("akin: expected bracketed/braced group or range expression after '&{}=', got {:?}", &name[1..], tt),
     };
+
+    let mut values: Vec<String> = Vec::new();
 
     if group.delimiter() == Delimiter::Bracket {
         let mut stream = group.stream().into_iter();
@@ -320,7 +389,68 @@ fn parse_var(
         panic!( "akin: expected ';' on end of '&{}' declaration", &name[1..]);
     }
 
-    (name, values)
+    Some((name, values))
+}
+
+fn parse_integer_literal(tokens: &mut Lookahead) -> Result<u64, &'static str> {
+    match tokens.peek_nth(0) {
+        Some(TokenTree::Literal(l)) => {
+            l.to_string().parse().map(|i| {
+                tokens.next();
+                i
+            }).map_err(|_| {
+                "non-integer literal"
+            })
+        },
+        Some(_) => Err("non-literal token"),
+        None => Err("unexpected end of input"),
+    }
+}
+
+fn parse_range_expr(
+    var_name: &str,
+    tokens: &mut Lookahead,
+) -> Vec<String> {
+    let range_start = match parse_integer_literal(tokens) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!(
+                "akin: integer literal expected after 'let &{}='{}",
+                var_name, tokens.peek_nth(0).map(|tt| format!(", got {} '{}'", e, tt)).unwrap_or_default()
+            );
+        }
+    };
+
+    let inclusive = match (tokens.next(), tokens.next(), tokens.peek_nth(0)) {
+        (Some(TokenTree::Punct(p1)), Some(TokenTree::Punct(p2)), p3) if p1.spacing() == Spacing::Joint && (p1.as_char(), p2.as_char()) == ('.', '.') => {
+            p2.spacing() == Spacing::Joint && matches!(p3, Some(TokenTree::Punct(p3)) if p3.as_char() == '=')
+        },
+        _ => {
+            panic!( "akin: expected '..' or '..=' after 'let &{}={}'", var_name, range_start);
+        },
+    };
+
+    if inclusive {
+        tokens.next(); // drop the '=' in '..='
+    }
+
+    let range_end = match parse_integer_literal(tokens) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!(
+                "akin: integer literal expected after 'let &{}={}..'{}",
+                var_name, range_start, tokens.peek_nth(0).map(|tt| format!(", got {} '{}'", e, tt)).unwrap_or_default()
+            );
+        }
+    };
+
+    if !matches!(tokens.next(), Some(TokenTree::Punct(p)) if p.as_char() == ';') {
+        panic!( "akin: expected ';' on end of '&{}' declaration", var_name);
+    }
+
+    let last = Some(range_end).filter(|_| inclusive);
+    let iter = (range_start..range_end).chain(last).map(|i| i.to_string());
+    iter.collect()
 }
 
 fn duplicate(stream: &str, vars: &Map<String, Vec<String>>) -> String {

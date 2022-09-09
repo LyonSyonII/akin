@@ -127,6 +127,19 @@ Because the variables `&lhs` and `&rhs` both have 3 values.
 
 As you can see, `&` is used to declare variables and `*` is used to "dereference" them to the current value.
 
+As a matter of convenience, the range syntax is also accepted, when declaring a variable,
+e.g. `0..3` and `0..=3`, which are equivalent to `[0,1,2]` and `[0,1,2,3]` respectively.
+So the above example could also be written like
+
+```rust
+let &lhs = 1..=3;
+let &rhs = 4..=6;
+println!("*lhs + *rhs = {}", *lhs + *rhs);
+```
+
+Presently, only unsigned integers that can fit in `u64` are supported in ranges, i.e. ranges
+like `-10..-1` or `'a'..'c'`, which are fine in regular Rust, aren't accepted by `akin`.
+
 If a used variable has less values than another, the last one will be used.
 
 ```rust
