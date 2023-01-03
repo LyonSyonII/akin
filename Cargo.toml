@@ -2,7 +2,7 @@
 name = "akin"
 authors = ["Liam Garriga <liam.garriga@tutanota.com>"]
 description = "A crate for writing repetitive code easier and faster."
-version = "0.3.3"
+version = "0.4.0"
 license = "MIT"
 edition = "2021"
 repository = "https://github.com/lyonsyonii/akin"
